@@ -1,0 +1,414 @@
+/* 🎨 نظام التصميم المتقدم لعيادة الأسنان */
+
+:root {
+  /* الألوان الأساسية */
+  --color-white: #FFFFFF;
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-300: #CBD5E1;
+  --color-gray-400: #94A3B8;
+  --color-gray-500: #64748B;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1E293B;
+  --color-gray-900: #0F172A;
+
+  /* التدرج الرئيسي والمتنوعات الجديدة */
+  --gradient-primary: linear-gradient(135deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%);
+  --gradient-blue: linear-gradient(135deg, #2A7B9B 0%, #4A90A4 100%);
+  --gradient-purple: linear-gradient(135deg, #8A85B3 0%, #9B95C9 100%);
+  --gradient-pink: linear-gradient(135deg, #A472AE 0%, #B888C2 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(42, 123, 155, 0.1) 0%, rgba(164, 114, 174, 0.1) 100%);
+
+  /* الألوان المستخرجة من التدرج الأصلي */
+  --color-primary-blue: #2A7B9B;
+  --color-primary-purple: #8A85B3;
+  --color-primary-pink: #A472AE;
+
+  /* ألوان الجدول */
+  --color-primary-50: #f8f4ff;
+  --color-primary-100: #f0e6ff;
+  --color-primary-200: #e1ccff;
+  --color-primary-300: #c9a3ff;
+  --color-primary-400: #a472ae;
+  --color-primary-500: #8a85b3;
+  --color-primary-600: #2a7b9b;
+  --color-primary-700: #1e5f7a;
+  --color-primary-800: #164e63;
+  --color-primary-900: #0f3d4f;
+
+  /* ألوان بشفافية متدرجة */
+  --color-primary-blue-5: rgba(42, 123, 155, 0.05);
+  --color-primary-blue-10: rgba(42, 123, 155, 0.1);
+  --color-primary-blue-20: rgba(42, 123, 155, 0.2);
+  --color-primary-purple-5: rgba(138, 133, 179, 0.05);
+  --color-primary-purple-10: rgba(138, 133, 179, 0.1);
+  --color-primary-purple-20: rgba(138, 133, 179, 0.2);
+  --color-primary-pink-5: rgba(164, 114, 174, 0.05);
+  --color-primary-pink-10: rgba(164, 114, 174, 0.1);
+  --color-primary-pink-20: rgba(164, 114, 174, 0.2);
+
+  /* الظلال المتقدمة */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+  --shadow-blue: 0 8px 25px rgba(42, 123, 155, 0.2);
+  --shadow-purple: 0 8px 25px rgba(138, 133, 179, 0.2);
+  --shadow-pink: 0 8px 25px rgba(164, 114, 174, 0.2);
+
+  /* الحواف المدورة */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* المسافات */
+  --spacing-xs: 8px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 32px;
+  --spacing-xl: 48px;
+
+  /* الانتقالات */
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.3s ease-in-out;
+  --transition-slow: 0.5s ease-in-out;
+}
+
+/* الأنماط العامة */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-gray-50);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-gray-800);
+  line-height: 1.6;
+}
+
+/* البطاقات المتقدمة */
+.card {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-gray-100);
+  transition: all var(--transition-normal);
+  overflow: hidden;
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-soft);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+/* بطاقات ملونة بالألوان الثلاثة */
+.card-blue {
+  background: var(--gradient-blue);
+  color: var(--color-white);
+  border: none;
+}
+
+.card-blue:hover {
+  box-shadow: var(--shadow-blue);
+  transform: translateY(-8px) scale(1.02);
+}
+
+.card-purple {
+  background: var(--gradient-purple);
+  color: var(--color-white);
+  border: none;
+}
+
+.card-purple:hover {
+  box-shadow: var(--shadow-purple);
+  transform: translateY(-8px) scale(1.02);
+}
+
+.card-pink {
+  background: var(--gradient-pink);
+  color: var(--color-white);
+  border: none;
+}
+
+.card-pink:hover {
+  box-shadow: var(--shadow-pink);
+  transform: translateY(-8px) scale(1.02);
+}
+
+.card-gradient {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  border: none;
+}
+
+.card-gradient:hover {
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: var(--shadow-2xl);
+}
+
+/* الأزرار */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  gap: 8px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  box-shadow: var(--shadow-primary);
+}
+
+.btn-primary:hover {
+  background: var(--gradient-primary-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary-blue);
+  border: 2px solid var(--color-primary-blue-20);
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary-blue-10);
+  border-color: var(--color-primary-blue);
+}
+
+/* الحركات المتقدمة */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* الإشعارات */
+.notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: slideInRight 0.3s ease-out;
+  max-width: 400px;
+}
+
+.notification-success {
+  background: #10B981;
+  color: white;
+}
+
+.notification-error {
+  background: #EF4444;
+  color: white;
+}
+
+.notification-info {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+/* التحميل */
+.loading-skeleton {
+  background: linear-gradient(90deg, var(--color-gray-200) 25%, var(--color-gray-100) 50%, var(--color-gray-200) 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* الاستجابة */
+@media (max-width: 768px) {
+  .card {
+    border-radius: var(--radius-sm);
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+
+  .notification {
+    right: 16px;
+    top: 16px;
+    max-width: calc(100vw - 32px);
+  }
+}
+
+/* أنماط الجدول المخصصة */
+.table-header-gradient {
+  background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%) !important;
+}
+
+/* رأس الجدول فقط - يحتفظ بالتدرج */
+thead tr.bg-gradient-to-l {
+  background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%) !important;
+}
+
+thead tr.from-primary-600 {
+  background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%) !important;
+}
+
+thead tr.to-primary-500 {
+  background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%) !important;
+}
+
+/* إرجاع الألوان البيضاء للشريط الجانبي والعناوين (ما عدا الجدول) */
+.bg-gradient-to-l:not(thead tr) {
+  background: white !important;
+}
+
+.from-primary-50 {
+  background: white !important;
+}
+
+.to-white {
+  background: white !important;
+}
+
+.from-primary-600:not(thead tr) {
+  background: white !important;
+}
+
+.to-primary-500:not(thead tr) {
+  background: white !important;
+}
+
+.bg-clip-text {
+  background: none !important;
+  color: #1f2937 !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+
+.text-transparent {
+  color: #1f2937 !important;
+}

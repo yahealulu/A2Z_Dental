@@ -1,0 +1,149 @@
+@import './styles/design-system.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Tajawal', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  direction: rtl;
+  background-color: #f9fafb;
+}
+
+@layer base {
+  html {
+    font-family: 'Tajawal', system-ui, sans-serif;
+  }
+
+  /* تحسين تجربة التمرير */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(138, 133, 179, 1) 50%, rgba(164, 114, 174, 1) 100%);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, rgba(30, 95, 122, 1) 0%, rgba(107, 102, 145, 1) 50%, rgba(144, 94, 154, 1) 100%);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-l from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-button hover:shadow-button-hover transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1;
+  }
+
+  /* تحسين مظهر القوائم المنسدلة */
+  select {
+    border-radius: 0.5rem !important;
+    border-bottom-left-radius: 0.5rem !important;
+    border-bottom-right-radius: 0.5rem !important;
+  }
+
+  select option:last-child {
+    border-bottom: 1px solid #e5e7eb;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
+
+  /* تخصيص القوائم المنسدلة */
+  .day-dropdown {
+    /* قائمة مخصصة للأيام */
+  }
+
+  /* تخصيص قائمة الساعة للظهور للأسفل */
+  .hour-select {
+    /* الحجم الطبيعي */
+  }
+
+  /* إبقاء قائمة العلاج كما هي (للأعلى) - قائمة منسدلة عادية */
+  .treatment-select {
+    /* الحجم الطبيعي */
+  }
+
+  .btn-secondary {
+    @apply bg-gradient-to-l from-gray-200 to-gray-100 hover:from-gray-300 hover:to-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-lg shadow-button hover:shadow-button-hover transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1;
+  }
+
+  .btn-danger {
+    @apply bg-gradient-to-l from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-button hover:shadow-button-hover transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1;
+  }
+
+  /* فئات مساعدة للتأثيرات الحركية */
+  .animate-shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 hover:translate-y-[-3px] hover:shadow-card-hover;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-glow;
+  }
+
+  .card-base {
+    @apply bg-white rounded-2xl shadow-card hover:shadow-card-hover overflow-hidden border border-gray-100 transition-all duration-400 hover:translate-y-[-3px] group;
+  }
+}
+
+/* تعريف تأثير الاهتزاز */
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-2px, 0, 0); }
+  40%, 60% { transform: translate3d(2px, 0, 0); }
+}
+
+/* انيميشن للمودال */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ضمان تغطية المودال لكامل الشاشة */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+}
