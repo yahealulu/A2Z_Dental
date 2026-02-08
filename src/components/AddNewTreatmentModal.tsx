@@ -85,7 +85,7 @@ const AddNewTreatmentModal = ({ isOpen, onClose }: AddNewTreatmentModalProps) =>
   };
 
   // التعامل مع تغيير البيانات
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setTreatmentData(prev => ({
       ...prev,
@@ -197,6 +197,7 @@ const AddNewTreatmentModal = ({ isOpen, onClose }: AddNewTreatmentModalProps) =>
         name: treatmentData.name,
         cost,
         startDate: treatmentData.startDate,
+        status: 'planned',
         teethNumbers: teethNumbers.length > 0 ? teethNumbers : undefined,
         doctorId
       }, treatmentData.firstSessionNotes);

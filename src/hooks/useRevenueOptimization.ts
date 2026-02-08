@@ -232,6 +232,7 @@ export const useRevenueOptimization = () => {
       preloadedMonths: new Set(),
       paymentDateIndex: null,
       expenseDateIndex: null,
+      revenueIndexEngine: null,
       dateRangeCache: new Map(),
       lastUpdate: Date.now()
     };
@@ -344,7 +345,7 @@ export const useRevenueOptimization = () => {
 
     const patientTreatments = getTreatmentsByPatient(patientId);
     const latestTreatment = patientTreatments
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())[0];
 
     const treatmentType = latestTreatment?.name || 'غير محدد';
     cache.set(patientId, treatmentType);

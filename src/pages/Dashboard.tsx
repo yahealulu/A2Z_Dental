@@ -69,25 +69,22 @@ const Dashboard = () => {
   };
 
   // تصفية المواعيد حسب اليوم المحدد - محسنة
-  const selectedDayAppointments = useMemo(() => {
-    // إذا كان اليوم المحدد هو اليوم الحالي، استخدم البيانات المحسنة
+  const selectedDayAppointments = useMemo((): Appointment[] => {
     const today = format(new Date(), 'yyyy-MM-dd');
     if (selectedDay === today && hasData && stats) {
-      // تحويل البيانات المحسنة إلى تنسيق المواعيد
       return stats.todayAppointments.map(apt => ({
         id: apt.id,
+        patientId: apt.patientId,
         patientName: apt.patientName,
         time: apt.time,
-        status: apt.status,
+        status: apt.status as Appointment['status'],
         doctorName: apt.doctorName,
         date: selectedDay,
-        patientId: apt.patientId,
-        isNewPatient: apt.isNewPatient,
-        treatment: apt.treatment
-      }));
+        isNewPatient: apt.isNewPatient ?? false,
+        treatment: apt.treatment,
+        doctorId: undefined
+      })) as Appointment[];
     }
-
-    // للأيام الأخرى، استخدم التصفية العادية
     return appointments.filter(appointment => appointment.date === selectedDay);
   }, [selectedDay, hasData, stats, appointments]);
 
@@ -188,16 +185,18 @@ const Dashboard = () => {
     {
       header: 'الحالة',
       accessor: (appointment: Appointment) => {
-        const statusClasses = {
+        const statusClasses: Record<Appointment['status'], string> = {
           scheduled: 'bg-blue-100 text-blue-800',
           completed: 'bg-green-100 text-green-800',
-          cancelled: 'bg-red-100 text-red-800'
+          cancelled: 'bg-red-100 text-red-800',
+          waiting_list: 'bg-amber-100 text-amber-800'
         };
 
         const statusLabels = {
           scheduled: 'مجدول',
           completed: 'مكتمل',
-          cancelled: 'ملغي'
+          cancelled: 'ملغي',
+          waiting_list: 'قائمة الانتظار'
         };
 
         return (

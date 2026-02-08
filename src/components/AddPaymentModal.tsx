@@ -17,7 +17,8 @@ const AddPaymentModal = ({ isOpen, onClose, patientId, patientName }: AddPayment
   const { getTotalCostByPatientId } = useTreatmentStore();
   const [paymentData, setPaymentData] = useState({
     amount: '' as string | number,
-    paymentDate: format(new Date(), 'yyyy-MM-dd')
+    paymentDate: format(new Date(), 'yyyy-MM-dd'),
+    notes: '' as string
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isModalAnimating, setIsModalAnimating] = useState(false);
@@ -73,7 +74,8 @@ const AddPaymentModal = ({ isOpen, onClose, patientId, patientName }: AddPayment
       setIsLoading(false);
       setPaymentData({
         amount: '',
-        paymentDate: format(new Date(), 'yyyy-MM-dd')
+        paymentDate: format(new Date(), 'yyyy-MM-dd'),
+        notes: ''
       });
     }, 300);
   };

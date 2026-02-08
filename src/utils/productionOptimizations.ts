@@ -84,10 +84,11 @@ export const optimizeForProduction = () => {
     }
 
     // تحسين garbage collection
-    if (typeof global !== 'undefined' && global.gc) {
+    const globalWithGc = typeof global !== 'undefined' ? global as { gc?: () => void } : undefined;
+    if (globalWithGc && typeof globalWithGc.gc === 'function') {
       // تشغيل garbage collection كل 5 دقائق
       const gcInterval = setInterval(() => {
-        global.gc();
+        globalWithGc.gc!();
       }, 5 * 60 * 1000);
 
       // تنظيف عند إغلاق التطبيق

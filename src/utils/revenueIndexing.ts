@@ -39,9 +39,12 @@ export interface RevenueIndexConfig {
   treatmentTotals: Map<string, number>;
 }
 
+// نوع الدفعة المكيفة للفهرسة (تحتوي على date)
+type EnhancedPaymentWithDate = EnhancedPayment & { date: string };
+
 // فئة محرك فهرسة الإيرادات المتقدم
 export class RevenueIndexingEngine {
-  private advancedIndex: AdvancedIndexingEngine<EnhancedPayment>;
+  private advancedIndex: AdvancedIndexingEngine<EnhancedPaymentWithDate>;
   private customIndex: RevenueIndexConfig;
   private payments: EnhancedPayment[];
 
@@ -50,7 +53,7 @@ export class RevenueIndexingEngine {
     this.customIndex = this.createEmptyCustomIndex();
     
     // تحويل البيانات لتتوافق مع AdvancedIndexingEngine
-    const adaptedPayments = payments.map(payment => ({
+    const adaptedPayments: EnhancedPaymentWithDate[] = payments.map(payment => ({
       ...payment,
       date: payment.paymentDate // تحويل paymentDate إلى date
     }));

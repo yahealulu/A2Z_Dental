@@ -326,8 +326,18 @@ export class DashboardOptimizer {
   }
 
   // إبطال cache عند تحديث البيانات
-  invalidateCache(dataType: 'appointments' | 'payments' | 'expenses' | 'patients' | 'all'): void {
+  invalidateCache(dataType: 'appointments' | 'payments' | 'expenses' | 'patients' | 'all' | 'today_appointments'): void {
     switch (dataType) {
+      case 'today_appointments':
+        // تنظيف cache مواعيد اليوم فقط
+        {
+          const today = format(new Date(), 'yyyy-MM-dd');
+          const keys = Array.from(dashboardCache.keys()).filter(key =>
+            key.startsWith(`today_appointments_${today}`)
+          );
+          keys.forEach(key => dashboardCache.delete(key));
+        }
+        break;
       case 'appointments':
         dashboardCache.invalidate('appointments');
         dashboardCache.invalidate('today_stats');

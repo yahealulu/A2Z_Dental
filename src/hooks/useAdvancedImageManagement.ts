@@ -32,7 +32,7 @@ export const useAdvancedImageManagement = (config: Partial<MemoryManagementConfi
     cacheHits: 0
   });
   
-  const cleanupIntervalRef = useRef<NodeJS.Timeout>();
+  const cleanupIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const loadTimeTracker = useRef<Map<string, number>>(new Map());
   const requestCounter = useRef(0);
   const cacheHitCounter = useRef(0);

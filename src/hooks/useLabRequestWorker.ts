@@ -9,6 +9,8 @@ interface DeliveryStatus {
   color: string;
 }
 
+export type LabRequestWithDeliveryStatus = Omit<LabRequest, 'status'> & { status: DeliveryStatus };
+
 interface WorkerMessage {
   type: string;
   data: any;
@@ -87,7 +89,7 @@ export const useLabRequestWorker = () => {
     if (!workerRef.current || !isWorkerReady) {
       // Fallback للحساب المحلي إذا لم يكن Worker متاحاً
       const results = requests.map(request => ({
-        id: request.id,
+        id: String(request.id),
         status: getDeliveryStatusFallback(request.expectedReturnDate)
       }));
       callback(results);
@@ -114,16 +116,16 @@ export const useLabRequestWorker = () => {
   const processOverdueRequests = useCallback((
     requests: LabRequest[],
     callback: (data: {
-      overdueRequests: Array<LabRequest & { status: DeliveryStatus }>;
-      todayRequests: Array<LabRequest & { status: DeliveryStatus }>;
+      overdueRequests: LabRequestWithDeliveryStatus[];
+      todayRequests: LabRequestWithDeliveryStatus[];
       overdueCount: number;
       todayCount: number;
     }) => void
   ) => {
     if (!workerRef.current || !isWorkerReady) {
       // Fallback للحساب المحلي
-      const overdueRequests: Array<LabRequest & { status: DeliveryStatus }> = [];
-      const todayRequests: Array<LabRequest & { status: DeliveryStatus }> = [];
+      const overdueRequests: LabRequestWithDeliveryStatus[] = [];
+      const todayRequests: LabRequestWithDeliveryStatus[] = [];
       
       requests.forEach(request => {
         const status = getDeliveryStatusFallback(request.expectedReturnDate);
@@ -165,7 +167,7 @@ export const useLabRequestWorker = () => {
     filters: FilterOptions,
     pagination: PaginationOptions,
     callback: (data: {
-      requests: Array<LabRequest & { status: DeliveryStatus }>;
+      requests: LabRequestWithDeliveryStatus[];
       totalFiltered: number;
       totalPages: number;
       currentPage: number;
@@ -201,7 +203,7 @@ export const useLabRequestWorker = () => {
       const paginatedRequests = filtered.slice(startIndex, endIndex);
       
       // إضافة حالة التسليم
-      const requestsWithStatus = paginatedRequests.map(request => ({
+      const requestsWithStatus: LabRequestWithDeliveryStatus[] = paginatedRequests.map(request => ({
         ...request,
         status: getDeliveryStatusFallback(request.expectedReturnDate)
       }));

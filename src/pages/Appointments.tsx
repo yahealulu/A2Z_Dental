@@ -395,10 +395,10 @@ const Appointments = () => {
         medicalHistory: newPatient.medicalHistory
       };
 
-      const savedPatient = await addPatient(patientData);
+      const savedPatientId = await addPatient(patientData);
 
       // Set the new patient as selected in appointment form
-      setNewAppointment(prev => ({ ...prev, patientId: savedPatient.id.toString() }));
+      setNewAppointment(prev => ({ ...prev, patientId: savedPatientId.toString() }));
 
       // تحديث أي مواعيد موجودة لهذا المريض الجديد
       const appointmentsToUpdate = appointments.filter(apt =>
@@ -409,7 +409,7 @@ const Appointments = () => {
       // تحديث المواعيد لربطها بالمريض الجديد
       for (const appointment of appointmentsToUpdate) {
         await updateAppointment(appointment.id, {
-          patientId: savedPatient.id,
+          patientId: savedPatientId,
           isNewPatient: false
         });
       }

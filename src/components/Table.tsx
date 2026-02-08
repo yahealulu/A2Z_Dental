@@ -86,8 +86,8 @@ const Table = React.memo(<T,>({
       </table>
     </div>
   );
-}) as <T>(props: TableProps<T>) => JSX.Element;
+}) as <T>(props: TableProps<T>) => React.ReactElement;
 
-Table.displayName = 'Table';
+(Table as React.FC & { displayName?: string }).displayName = 'Table';
 
 export default Table;

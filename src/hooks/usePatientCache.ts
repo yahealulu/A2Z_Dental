@@ -115,7 +115,7 @@ export const usePatientCache = (options: CacheOptions = {}) => {
     // تنظيف التخزين إذا تجاوز الحد الأقصى
     if (cache.size > maxSize) {
       const oldestKey = cache.keys().next().value;
-      cache.delete(oldestKey);
+      if (oldestKey !== undefined) cache.delete(oldestKey);
     }
 
     setCacheStats(prev => ({ 
@@ -154,11 +154,11 @@ export const usePatientCache = (options: CacheOptions = {}) => {
     // تنظيف التخزين إذا تجاوز الحد الأقصى
     if (cache.size > maxSize) {
       const oldestKey = cache.keys().next().value;
-      cache.delete(oldestKey);
+      if (oldestKey !== undefined) cache.delete(oldestKey);
     }
 
-    setCacheStats(prev => ({ 
-      ...prev, 
+    setCacheStats(prev => ({
+      ...prev,
       misses: prev.misses + 1,
       size: lastVisitCacheRef.current.size + cache.size
     }));

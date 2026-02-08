@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { XRay, XRayType } from '../data/xrays';
+export type { XRay, XRayType } from '../data/xrays';
 
 // تعريف إحصائيات الأشعة
 export interface XRayStats {

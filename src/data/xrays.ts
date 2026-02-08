@@ -6,6 +6,9 @@ export interface XRay {
   imageUrl: string;
   date: string;
   notes?: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // أنواع الصور الشعاعية

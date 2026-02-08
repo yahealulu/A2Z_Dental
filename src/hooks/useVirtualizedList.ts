@@ -19,7 +19,7 @@ interface VirtualizedListResult<T> {
   containerProps: {
     style: React.CSSProperties;
     onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
-    ref: React.RefObject<HTMLDivElement>;
+    ref: React.RefObject<HTMLDivElement | null>;
   };
   isScrolling: boolean;
   visibleRange: { start: number; end: number };

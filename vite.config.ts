@@ -5,30 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // تحسينات للإنتاج
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        // إزالة جميع console statements في الإنتاج
-        drop_console: true,
-        drop_debugger: true,
-        // إزالة التعليقات
-        comments: false,
-        // تحسينات إضافية
-        dead_code: true,
-        unused: true,
-        // إزالة console.log, console.warn, console.error
-        pure_funcs: ['console.log', 'console.warn', 'console.error', 'console.info', 'console.debug']
-      },
-      mangle: {
-        // تشفير أسماء المتغيرات
-        toplevel: true
-      },
-      format: {
-        // إزالة التعليقات
-        comments: false
-      }
-    },
+    // تحسينات للإنتاج (استخدام esbuild الافتراضي - أسرع ولا يتطلب تثبيت terser)
+    minify: 'esbuild',
     // تحسين حجم الـ bundle
     rollupOptions: {
       output: {

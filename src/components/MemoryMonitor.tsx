@@ -6,8 +6,7 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { memoryManager, formatBytes, isMemoryPressure, type MemoryStats } from '../utils/memoryManager';
-import { useComponentCleanup } from '../hooks/useMemoryLeakPrevention';
+import { memoryManager, formatBytes, type MemoryStats } from '../utils/memoryManager';
 
 interface MemoryMonitorProps {
   onManualCleanup?: () => void;
@@ -16,9 +15,6 @@ interface MemoryMonitorProps {
 const MemoryMonitor: React.FC<MemoryMonitorProps> = ({ onManualCleanup }) => {
   const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
   const [isVisible, setIsVisible] = useState(false);
-
-  // تنظيف Memory Leaks عند إلغاء تحميل المكون
-  useComponentCleanup('MemoryMonitor');
   const [isExpanded, setIsExpanded] = useState(false);
 
   // تحديث إحصائيات الذاكرة كل 30 ثانية
@@ -39,7 +35,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({ onManualCleanup }) => {
     const isHighMemoryPressure = memoryStats?.warningLevel === 'high' || memoryStats?.isOverLimit;
 
     // إظهار فقط في التطوير أو عند ضغط ذاكرة عالي جداً
-    const shouldShow = isDevelopment && isHighMemoryPressure;
+    const shouldShow = Boolean(isDevelopment && isHighMemoryPressure);
     setIsVisible(shouldShow);
   }, [memoryStats]);
 

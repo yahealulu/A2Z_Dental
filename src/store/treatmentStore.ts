@@ -38,6 +38,9 @@ export interface Treatment {
   isActive?: boolean;
   procedureId?: number; // إحالة إلى إجراء من procedureStore
   procedureCode?: string;
+  notes?: string; // ملاحظات عامة للعلاج
+  type?: string; // نوع العلاج (للتوافق مع التقارير)
+  date?: string; // alias لـ startDate للتوافق
 }
 
 // قالب العلاج (العلاجات الثابتة المتاحة في العيادة)

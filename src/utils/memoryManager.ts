@@ -258,7 +258,7 @@ export class MemoryManager {
 
   // مراقبة نشطة للذاكرة
   private startActiveMonitoring(): void {
-    const monitoringInterval = setInterval(() => {
+    setInterval(() => {
       const stats = this.getMemoryStats();
 
       // تنظيف تلقائي إذا تجاوز الحد
@@ -274,8 +274,6 @@ export class MemoryManager {
         console.warn(`Memory usage high: ${stats.totalCacheSize.toFixed(2)}MB`);
       }
     }, 30000); // كل 30 ثانية أثناء النشاط
-
-    return monitoringInterval;
   }
 
   // جدولة تنظيف دوري لنوع cache معين

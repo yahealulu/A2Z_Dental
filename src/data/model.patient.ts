@@ -98,7 +98,7 @@ export class Patient implements PatientSchema {
       lastVisit: this.lastVisit,
       medicalHistory: [...this.medicalHistory],
       teeth: Object.values(this.teeth)
-        .filter(tooth => tooth.condition !== 'sound' || tooth.notes.length > 0)
+        .filter(tooth => tooth.notes.length > 0)
         .map(tooth => tooth.toJSON())
     };
   }

@@ -284,7 +284,7 @@ const LabRequests = () => {
     setIsLoading(true);
     try {
       if (categoryType === 'labs') {
-        await addLab(categoryName.trim());
+        await addLab({ name: categoryName.trim() });
         notify.success('تم إضافة المخبر بنجاح');
       } else {
         await addWorkType(categoryName.trim());
@@ -306,7 +306,7 @@ const LabRequests = () => {
     setIsLoading(true);
     try {
       if (editingCategory.type === 'labs') {
-        await updateLab(editingCategory.id, categoryName.trim());
+        await updateLab(editingCategory.id, { name: categoryName.trim() });
         notify.success('تم تعديل المخبر بنجاح');
       } else {
         await updateWorkType(editingCategory.id, categoryName.trim());
@@ -837,7 +837,7 @@ const LabRequests = () => {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'history' ? (
           // جدول السجل
           <div>
             <div className="px-6 py-4 border-b border-gray-200">
@@ -1001,7 +1001,8 @@ const LabRequests = () => {
             )}
           </div>
         ) : (
-          /* تبويب حسابات المخابر */
+          <>
+          {/* تبويب حسابات المخابر */}
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
               <BanknotesIcon className="h-5 w-5" />
@@ -1044,6 +1045,7 @@ const LabRequests = () => {
               <p className="text-gray-500 text-sm">لا يوجد مخابر. أضف مخابر من «إدارة الفئات» أولاً.</p>
             )}
           </div>
+          </>
         )}
       </div>
 

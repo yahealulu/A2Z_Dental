@@ -228,13 +228,15 @@ const VirtualizedPatientList: React.FC<VirtualizedPatientListProps> = ({
       >
         {/* المحتوى الداخلي */}
         <div style={{ height: totalHeight, position: 'relative' }}>
-          {gridItems.map((row) => (
+          {gridItems.map((row) => {
+            const patientsInRow = 'patients' in row ? row.patients : [row.patient];
+            return (
             <div
               key={row.index}
               style={row.style}
               className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 px-4"
             >
-              {row.patients.map((patient) => (
+              {patientsInRow.map((patient: Patient) => (
                 <PatientCard
                   key={patient.id}
                   id={patient.id}
@@ -247,7 +249,7 @@ const VirtualizedPatientList: React.FC<VirtualizedPatientListProps> = ({
                 />
               ))}
             </div>
-          ))}
+          );})}
         </div>
 
         {/* مؤشر التحميل */}

@@ -29,7 +29,7 @@ export const useImageMemoryManager = (config: Partial<MemoryConfig> = {}) => {
     lastCleanup: Date.now()
   });
   
-  const cleanupIntervalRef = useRef<NodeJS.Timeout>();
+  const cleanupIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // تقدير حجم الصورة من Base64
   const estimateImageSize = useCallback((dataUrl: string): number => {

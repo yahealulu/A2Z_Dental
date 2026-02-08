@@ -152,7 +152,7 @@ const OptimizedXRayGallery: React.FC<OptimizedXRayGalleryProps> = ({
   }, [allXRays]);
 
   // دالة حذف الصورة
-  const handleDeleteXRay = useCallback(async (xrayId: string) => {
+  const handleDeleteXRay = useCallback(async (xrayId: number) => {
     if (window.confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
       try {
         await deleteXRay(xrayId);

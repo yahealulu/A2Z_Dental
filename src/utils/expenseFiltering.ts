@@ -81,7 +81,7 @@ export class ExpenseFilterEngine {
     // إنشاء الفهرس المتقدم
     this.advancedIndex = new AdvancedIndexingEngine(
       expenses,
-      (expense) => [expense.description, expense.category].filter(Boolean).join(' ')
+      (expense) => [(expense as Expense & { description?: string }).description, expense.category].filter(Boolean).join(' ')
     );
 
     this.buildIndex();
@@ -130,7 +130,7 @@ export class ExpenseFilterEngine {
   // فهرسة مصطلحات البحث
   private indexSearchTerms(expense: Expense, expenseIndex: number): void {
     const searchableText = [
-      expense.description,
+      (expense as Expense & { description?: string }).description,
       expense.category,
       expense.amount.toString()
     ].join(' ').toLowerCase();

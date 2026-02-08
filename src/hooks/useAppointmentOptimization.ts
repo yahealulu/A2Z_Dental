@@ -93,8 +93,8 @@ export const useAppointmentOptimization = () => {
   const enrichedAppointments = useMemo(() => {
     return appointments.map(apt => ({
       ...apt,
-      patientName: patientMap.get(apt.patientId)?.name || 'مريض غير معروف',
-      doctorName: doctorMap.get(apt.doctorId)?.name || 'طبيب غير محدد'
+      patientName: patientMap.get(apt.patientId ?? 0)?.name || 'مريض غير معروف',
+      doctorName: doctorMap.get(apt.doctorId ?? 0)?.name || 'طبيب غير محدد'
     }));
   }, [appointments, patientMap, doctorMap]);
 
@@ -232,7 +232,7 @@ export const useAppointmentOptimization = () => {
   ) => {
     try {
       // تحديث في المتجر
-      await updateAppointment(appointmentId, { status: newStatus });
+      await updateAppointment(appointmentId, { status: newStatus as 'scheduled' | 'completed' | 'cancelled' | 'waiting_list' });
       
       // إبطال cache للشهر الحالي
       const currentMonth = format(calendarState.currentDate, 'yyyy-MM');

@@ -30,7 +30,7 @@ const VirtualizedList = React.memo(<T,>({
 }: VirtualizedListProps<T>) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   
   // مراقبة الأداء
   usePerformanceTracking('VirtualizedList');
@@ -157,8 +157,8 @@ const VirtualizedList = React.memo(<T,>({
       )}
     </div>
   );
-}) as <T>(props: VirtualizedListProps<T>) => JSX.Element;
+}) as <T>(props: VirtualizedListProps<T>) => React.ReactElement;
 
-VirtualizedList.displayName = 'VirtualizedList';
+(VirtualizedList as React.FC & { displayName?: string }).displayName = 'VirtualizedList';
 
 export default VirtualizedList;

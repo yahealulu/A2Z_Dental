@@ -483,23 +483,34 @@ export const useExpenseOptimization = () => {
     const unpaidAmount = unpaidExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
     // تجميع حسب الفئة
-    const categoryBreakdown: Record<string, { totalAmount: number; count: number; paidAmount: number; unpaidAmount: number }> = {};
+    const categoryBreakdown: CategoryAggregation = {};
     monthlyExpenses.forEach(expense => {
       if (!categoryBreakdown[expense.category]) {
         categoryBreakdown[expense.category] = {
+          categoryName: expense.category,
           totalAmount: 0,
-          count: 0,
+          expenseCount: 0,
+          averageAmount: 0,
           paidAmount: 0,
-          unpaidAmount: 0
+          unpaidAmount: 0,
+          paidCount: 0,
+          unpaidCount: 0
         };
       }
-      categoryBreakdown[expense.category].totalAmount += expense.amount;
-      categoryBreakdown[expense.category].count += 1;
+      const cat = categoryBreakdown[expense.category];
+      cat.totalAmount += expense.amount;
+      cat.expenseCount += 1;
       if (expense.isPaid) {
-        categoryBreakdown[expense.category].paidAmount += expense.amount;
+        cat.paidAmount += expense.amount;
+        cat.paidCount += 1;
       } else {
-        categoryBreakdown[expense.category].unpaidAmount += expense.amount;
+        cat.unpaidAmount += expense.amount;
+        cat.unpaidCount += 1;
       }
+    });
+    Object.keys(categoryBreakdown).forEach(catName => {
+      const cat = categoryBreakdown[catName];
+      cat.averageAmount = cat.expenseCount > 0 ? cat.totalAmount / cat.expenseCount : 0;
     });
 
     // تجميع يومي
@@ -595,7 +606,7 @@ export const useExpenseOptimization = () => {
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
         filteredExpenses = filteredExpenses.filter(exp =>
-          exp.description.toLowerCase().includes(searchLower) ||
+          (exp as Expense & { description?: string }).description?.toLowerCase().includes(searchLower) ||
           exp.category.toLowerCase().includes(searchLower)
         );
       }

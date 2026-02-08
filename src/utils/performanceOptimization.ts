@@ -148,7 +148,7 @@ export const useOptimizedMemo = <T>(
     }
     
     return result;
-  }, deps);
+  }, deps ?? []);
 };
 
 // Hook محسن للـ callback
@@ -179,7 +179,7 @@ export const useOptimizedDebounce = <T>(
   debugName?: string
 ): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     const startTime = performance.now();
@@ -214,7 +214,7 @@ export const useOptimizedThrottle = <T extends (...args: any[]) => any>(
   debugName?: string
 ): T => {
   const lastCall = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   return useCallback((...args: Parameters<T>) => {
     const now = Date.now();

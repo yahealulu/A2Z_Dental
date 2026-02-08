@@ -92,8 +92,7 @@ interface ExpenseState {
   getBulkMonthlyExpenses: (periods: Array<{year: number, month: number}>) => Map<string, Expense[]>;
   getBulkMonthlyExpensesTotals: (periods: Array<{year: number, month: number}>) => Map<string, number>;
 
-  // دوال محسنة لتجميع الفئات
-  getExpensesByCategory: (categoryName: string) => Expense[];
+  // دوال محسنة لتجميع الفئات (getExpensesByCategory declared above)
   getCategoryTotals: () => Record<string, number>;
   getCategoryStats: (categoryName: string) => {
     total: number;
@@ -573,11 +572,6 @@ export const useExpenseStore = create<ExpenseState>()(
         });
 
         return result;
-      },
-
-      // دوال محسنة لتجميع الفئات
-      getExpensesByCategory: (categoryName) => {
-        return get().expenses.filter(expense => expense.category === categoryName);
       },
 
       getCategoryTotals: () => {

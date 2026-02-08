@@ -1,14 +1,13 @@
 // مكون بطاقة الإحصائيات مع Lazy Loading
 
-import React, { Suspense, lazy } from 'react';
-import { LucideIcon } from 'lucide-react';
+import React, { Suspense } from 'react';
 
 // نوع البيانات للبطاقة
 interface StatsCardProps {
   title: string;
   value: string;
   subtitle: string;
-  icon: LucideIcon | React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   gradient: string;
   delay?: string;
   isLoading?: boolean;

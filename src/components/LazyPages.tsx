@@ -1,7 +1,6 @@
 // مكونات Lazy Loading للصفحات الثقيلة
 
-import { lazy, Suspense } from 'react';
-import { useLazyComponent } from './LazyComponent';
+import React, { lazy, Suspense } from 'react';
 
 // مكون التحميل المشترك للصفحات
 const PageLoadingFallback = ({ pageName }: { pageName: string }) => (
@@ -17,48 +16,47 @@ const PageLoadingFallback = ({ pageName }: { pageName: string }) => (
 // Lazy loading للصفحات الثقيلة
 export const LazyRevenue = lazy(() => 
   import('../pages/Revenue').then(module => {
-    // تأخير اصطناعي للتطوير (يمكن إزالته في الإنتاج)
     if (process.env.NODE_ENV === 'development') {
-      return new Promise(resolve => setTimeout(() => resolve(module), 100));
+      return new Promise<typeof module>(resolve => setTimeout(() => resolve(module), 100));
     }
     return module;
-  })
+  }) as Promise<{ default: React.ComponentType }>
 );
 
 export const LazyExpenses = lazy(() => 
   import('../pages/Expenses').then(module => {
     if (process.env.NODE_ENV === 'development') {
-      return new Promise(resolve => setTimeout(() => resolve(module), 100));
+      return new Promise<typeof module>(resolve => setTimeout(() => resolve(module), 100));
     }
     return module;
-  })
+  }) as Promise<{ default: React.ComponentType }>
 );
 
 export const LazyPatients = lazy(() => 
   import('../pages/Patients').then(module => {
     if (process.env.NODE_ENV === 'development') {
-      return new Promise(resolve => setTimeout(() => resolve(module), 100));
+      return new Promise<typeof module>(resolve => setTimeout(() => resolve(module), 100));
     }
     return module;
-  })
+  }) as Promise<{ default: React.ComponentType }>
 );
 
 export const LazyTreatments = lazy(() => 
   import('../pages/Treatments').then(module => {
     if (process.env.NODE_ENV === 'development') {
-      return new Promise(resolve => setTimeout(() => resolve(module), 100));
+      return new Promise<typeof module>(resolve => setTimeout(() => resolve(module), 100));
     }
     return module;
-  })
+  }) as Promise<{ default: React.ComponentType }>
 );
 
 export const LazyLabRequests = lazy(() => 
   import('../pages/LabRequests').then(module => {
     if (process.env.NODE_ENV === 'development') {
-      return new Promise(resolve => setTimeout(() => resolve(module), 100));
+      return new Promise<typeof module>(resolve => setTimeout(() => resolve(module), 100));
     }
     return module;
-  })
+  }) as Promise<{ default: React.ComponentType }>
 );
 
 // مكونات Wrapper مع Suspense

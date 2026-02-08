@@ -5,7 +5,7 @@ import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isV
 // نوع البيانات للفهرس المتقدم
 export interface AdvancedIndex<T> {
   // فهارس أساسية
-  byId: Map<number, T>;
+  byId: Map<number | string, T>;
   byDate: Map<string, T[]>;
   byMonth: Map<string, T[]>;
   byYear: Map<string, T[]>;
@@ -17,9 +17,9 @@ export interface AdvancedIndex<T> {
   byStatusAndCategory: Map<string, Map<string, T[]>>;
   
   // فهرس البحث النصي المحسن
-  textIndex: Map<string, Set<number>>;
-  wordIndex: Map<string, Set<number>>;
-  phraseIndex: Map<string, Set<number>>;
+  textIndex: Map<string, Set<number | string>>;
+  wordIndex: Map<string, Set<number | string>>;
+  phraseIndex: Map<string, Set<number | string>>;
   
   // فهارس رقمية
   amountRangeIndex: Map<string, T[]>;
@@ -58,12 +58,13 @@ export const INDEXING_CONFIG = {
 
 // فئة محرك الفهرسة المتقدم
 export class AdvancedIndexingEngine<T extends { 
-  id: number; 
+  id: number | string; 
   date: string; 
   category?: string; 
   amount?: number; 
   description?: string;
   isPaid?: boolean;
+  createdAt?: string;
 }> {
   private index: AdvancedIndex<T>;
   private data: T[];
@@ -373,7 +374,7 @@ export class AdvancedIndexingEngine<T extends {
     dateRange?: { start: string; end: string };
     amountRange?: { min: number; max: number };
   } = {}): T[] {
-    const results = new Set<number>();
+    const results = new Set<number | string>();
     const queryLower = query.toLowerCase();
     const words = this.extractWords(queryLower);
 

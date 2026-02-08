@@ -80,12 +80,7 @@ const PatientCard = React.memo(({
             <button
               onClick={() => onEdit(id)}
               className="p-2 rounded-full text-gray-400 focus:outline-none"
-              style={{
-                ':hover': {
-                  color: '#37839F',
-                  backgroundColor: 'rgba(55, 131, 159, 0.1)'
-                }
-              }}
+              style={{ color: '#9CA3AF', backgroundColor: 'transparent' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = '#37839F';
                 e.currentTarget.style.backgroundColor = 'rgba(55, 131, 159, 0.1)';
