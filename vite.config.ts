@@ -11,10 +11,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // فصل المكتبات الكبيرة
+          // فصل المكتبات الكبيرة (لا نستخدم ui chunk لأنه ينتج chunk فارغ مع heroicons tree-shaking)
           vendor: ['react', 'react-dom'],
-          utils: ['date-fns', 'zustand'],
-          ui: ['@heroicons/react']
+          utils: ['date-fns', 'zustand']
         }
       }
     },
