@@ -4,6 +4,8 @@ import { usePaymentStore } from '../store/paymentStore';
 import { useExpenseStore } from '../store/expenseStore';
 import { useTreatmentStore } from '../store/treatmentStore';
 import { usePatientStore } from '../store/patientStore';
+import { useDoctorPaymentStore } from '../store/doctorPaymentStore';
+import { useLabPaymentStore } from '../store/labPaymentStore';
 import { OptimizedDateIndex, dateUtils, type DateRange, type DateRangeStats } from '../utils/dateIndexing';
 import { memoryManager, MEMORY_LIMITS, type CleanupConfig } from '../utils/memoryManager';
 import { RevenueIndexingEngine, type EnhancedPayment } from '../utils/revenueIndexing';
@@ -74,6 +76,8 @@ export const useRevenueOptimization = () => {
   } = useExpenseStore();
   const { getTreatmentsByPatient } = useTreatmentStore();
   const { getPatientById } = usePatientStore();
+  const getMonthlyDoctorPayments = useDoctorPaymentStore(s => s.getMonthlyDoctorPayments);
+  const getMonthlyLabPayments = useLabPaymentStore(s => s.getMonthlyLabPayments);
 
   // حالة التحميل التدريجي
   const [loadingState, setLoadingState] = useState<ProgressiveLoadingState>({
@@ -506,9 +510,11 @@ export const useRevenueOptimization = () => {
       const expensesList = getOptimizedMonthlyExpenses(year, month);
       const expenses = expensesList.reduce((sum, expense) => sum + expense.amount, 0);
 
-      // المرحلة 3: حساب صافي الربح (100%)
+      // المرحلة 3: مدفوعات الأطباء والمخابر ثم صافي الربح (100%)
       setLoadingState(prev => ({ ...prev, loadingProgress: 90 }));
-      const netProfit = revenue - expenses;
+      const doctorPayments = getMonthlyDoctorPayments(year, month);
+      const labPayments = getMonthlyLabPayments(year, month);
+      const netProfit = revenue - expenses - doctorPayments - labPayments;
 
       const result: OptimizedMonthlyStats = {
         revenue,
@@ -532,7 +538,7 @@ export const useRevenueOptimization = () => {
       }));
       throw error;
     }
-  }, [getMonthlyRevenue, getOptimizedMonthlyExpenses, isCacheValid]);
+  }, [getMonthlyRevenue, getOptimizedMonthlyExpenses, getMonthlyDoctorPayments, getMonthlyLabPayments, isCacheValid]);
 
   // الحصول على الإحصائيات الشهرية المحسنة (متزامن للاستخدام الفوري)
   const getOptimizedMonthlyStats = useCallback((year: number, month: number): OptimizedMonthlyStats => {
@@ -544,10 +550,12 @@ export const useRevenueOptimization = () => {
       return cache.get(cacheKey)!;
     }
 
-    // حساب الإيرادات والمصاريف مباشرة
+    // حساب الإيرادات والمصاريف ومدفوعات الأطباء والمخابر
     const revenue = getMonthlyRevenue(year, month);
     const expenses = getOptimizedMonthlyExpenses(year, month).reduce((total, expense) => total + expense.amount, 0);
-    const netProfit = revenue - expenses;
+    const doctorPayments = getMonthlyDoctorPayments(year, month);
+    const labPayments = getMonthlyLabPayments(year, month);
+    const netProfit = revenue - expenses - doctorPayments - labPayments;
 
     const result = {
       revenue,
@@ -560,7 +568,7 @@ export const useRevenueOptimization = () => {
     cache.set(cacheKey, result);
 
     return result;
-  }, [isCacheValid, getMonthlyRevenue, getOptimizedMonthlyExpenses]);
+  }, [isCacheValid, getMonthlyRevenue, getOptimizedMonthlyExpenses, getMonthlyDoctorPayments, getMonthlyLabPayments]);
 
   // الحصول على إحصائيات متعددة الأشهر بشكل مجمع
   const getBulkMonthlyStats = useCallback((periods: Array<{year: number, month: number}>): Map<string, OptimizedMonthlyStats> => {
@@ -587,7 +595,9 @@ export const useRevenueOptimization = () => {
         const cacheKey = `${year}-${month}`;
         const revenue = revenueMap.get(cacheKey) || 0;
         const expenses = expensesMap.get(cacheKey) || 0;
-        const netProfit = revenue - expenses;
+        const doctorPayments = getMonthlyDoctorPayments(year, month);
+        const labPayments = getMonthlyLabPayments(year, month);
+        const netProfit = revenue - expenses - doctorPayments - labPayments;
 
         const stats: OptimizedMonthlyStats = {
           revenue,
@@ -602,7 +612,7 @@ export const useRevenueOptimization = () => {
     }
 
     return result;
-  }, [getBulkMonthlyRevenue, getBulkMonthlyExpensesTotals, isCacheValid]);
+  }, [getBulkMonthlyRevenue, getBulkMonthlyExpensesTotals, getMonthlyDoctorPayments, getMonthlyLabPayments, isCacheValid]);
 
   // حساب إجمالي إيرادات اليوم المحسن
   const calculateDailyTotal = useCallback((dailyRevenue: OptimizedDailyRevenue[]): number => {

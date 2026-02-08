@@ -58,7 +58,8 @@ const AddPaymentModal = ({ isOpen, onClose, patientId, patientName }: AddPayment
       patientName,
       amount,
       paymentDate: paymentData.paymentDate,
-      notes: ''
+      notes: paymentData.notes ?? '',
+      paymentMethod: 'نقداً'
     });
 
     // إشعار النجاح

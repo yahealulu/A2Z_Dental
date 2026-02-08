@@ -12,11 +12,11 @@ export interface Appointment {
   time: string;
   date: string; // التاريخ بتنسيق yyyy-MM-dd
   treatment: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'waiting_list';
   isNewPatient?: boolean;
   phone?: string;
   notes?: string;
-  // خصائص إضافية للتعديل
+  treatmentType?: string; // مجموعة الإجراء أو "Examination"
   day?: string;
   month?: string;
   year?: string;

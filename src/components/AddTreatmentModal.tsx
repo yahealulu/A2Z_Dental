@@ -11,11 +11,14 @@ interface AddTreatmentModalProps {
   onClose: () => void;
   patientId: number;
   patientName: string;
+  /** عند true يُضاف العلاج كـ "مخطط" فقط (بدون فاتورة) من السجل السني */
+  addAsPlanned?: boolean;
 }
 
-const AddTreatmentModal = ({ isOpen, onClose, patientId, patientName }: AddTreatmentModalProps) => {
+const AddTreatmentModal = ({ isOpen, onClose, patientId, patientName, addAsPlanned = false }: AddTreatmentModalProps) => {
   const {
     addTreatment,
+    addPlannedTreatment,
     treatmentTemplates,
     getActiveTreatmentTemplates,
     initializeDefaultTemplates
@@ -163,21 +166,32 @@ const AddTreatmentModal = ({ isOpen, onClose, patientId, patientName }: AddTreat
       teethNumbers.push(num);
     }
 
-    // إضافة العلاج
     try {
-      await addTreatment({
-        patientId,
-        name: treatmentData.name,
-        description: treatmentData.description || '',
-        cost,
-        date: treatmentData.treatmentDate,
-        status: treatmentData.status,
-        notes: treatmentData.notes || '',
-        teethNumbers: teethNumbers.length > 0 ? teethNumbers : []
-      });
-
-      // إشعار النجاح
-      notify.success('تم إضافة العلاج بنجاح');
+      if (addAsPlanned) {
+        await addPlannedTreatment({
+          patientId,
+          name: treatmentData.name,
+          description: treatmentData.description || '',
+          cost,
+          startDate: treatmentData.treatmentDate,
+          teethNumbers: teethNumbers.length > 0 ? teethNumbers : undefined,
+          doctorId: undefined,
+          status: 'planned'
+        });
+        notify.success('تم إضافة العلاج المخطط');
+      } else {
+        await addTreatment({
+          patientId,
+          name: treatmentData.name,
+          description: treatmentData.description || '',
+          cost,
+          startDate: treatmentData.treatmentDate,
+          status: 'in_progress',
+          teethNumbers: teethNumbers.length > 0 ? teethNumbers : [],
+          doctorId: undefined
+        } as any);
+        notify.success('تم إضافة العلاج بنجاح');
+      }
 
       // إغلاق النافذة مع انيميشن
       setIsModalAnimating(true);

@@ -7,7 +7,11 @@ import Appointments from './pages/Appointments';
 import PatientPayments from './pages/PatientPayments';
 import Doctors from './pages/Doctors';
 import Settings from './pages/Settings';
+import Staff from './pages/Staff';
+import Invoices from './pages/Invoices';
+import Payments from './pages/Payments';
 import PatientDetails from './pages/PatientDetails';
+import SharePatient from './pages/SharePatient';
 
 // الصفحات الثقيلة مع lazy loading
 import {
@@ -33,8 +37,11 @@ const pageTitles: Record<string, string> = {
   '/treatments': 'قوالب العلاجات',
   '/expenses': 'مصاريف العيادة',
   '/patient-payments': 'دفعات المرضى',
+  '/invoices': 'الفواتير',
+  '/payments': 'الدفعات',
   '/revenue': 'الإيرادات',
   '/doctors': 'الأطباء',
+  '/staff': 'طاقم العيادة',
   '/lab-requests': 'طلبات المخبر',
   '/settings': 'الإعدادات'
 };
@@ -81,7 +88,10 @@ const MainLayout = () => {
             <Route path="/patients/:id" element={<PatientDetails />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/patient-payments" element={<PatientPayments />} />
+            <Route path="/invoices" element={<Invoices />} />
+            <Route path="/payments" element={<Payments />} />
             <Route path="/doctors" element={<Doctors />} />
+            <Route path="/staff" element={<Staff />} />
             <Route path="/settings" element={<Settings />} />
 
             {/* الصفحات الثقيلة - lazy loading مع Error Boundaries */}
@@ -128,7 +138,10 @@ const MainLayout = () => {
 function App() {
   return (
     <Router>
-      <MainLayout />
+      <Routes>
+        <Route path="/share/:token" element={<SharePatient />} />
+        <Route path="*" element={<MainLayout />} />
+      </Routes>
     </Router>
   );
 }

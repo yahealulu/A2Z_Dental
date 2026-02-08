@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import {
-  PlusIcon,
-  XMarkIcon
-} from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
+import { PlusIcon, XMarkIcon, BanknotesIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import Table from '../components/Table';
 import { useDoctorStore } from '../store/doctorStore';
 import type { Doctor } from '../store/doctorStore';
+import { useDoctorPaymentStore } from '../store/doctorPaymentStore';
+import { useTreatmentStore } from '../store/treatmentStore';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { notify } from '../store/notificationStore';
 
 const Doctors = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentDoctor, setPaymentDoctor] = useState<Doctor | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount: '', date: format(new Date(), 'yyyy-MM-dd'), note: '' });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({
     title: '',
@@ -20,14 +24,9 @@ const Doctors = () => {
   });
 
   const [formData, setFormData] = useState({
-    name: 'د. ',
+    name: '',
     phone: '',
-    specialization: '',
-    email: '',
-    workDays: [] as string[],
-    workHours: { start: '09:00', end: '17:00' },
-    experience: 0,
-    isActive: true
+    email: ''
   });
 
   // استخدام DoctorStore
@@ -36,40 +35,48 @@ const Doctors = () => {
     toggleDoctorStatus,
     getAllDoctors
   } = useDoctorStore();
+  const { addPayment: addDoctorPayment, getPaymentsByDoctorId } = useDoctorPaymentStore();
+  const getTreatmentsByDoctor = useTreatmentStore(s => s.getTreatmentsByDoctor);
 
   // عرض جميع الأطباء (نشط وغير نشط)
   const filteredDoctors = getAllDoctors();
+
+  const handleOpenPaymentModal = (doctor: Doctor) => {
+    setPaymentDoctor(doctor);
+    setPaymentForm({ amount: '', date: format(new Date(), 'yyyy-MM-dd'), note: '' });
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleAddDoctorPayment = () => {
+    if (!paymentDoctor || !paymentForm.amount || Number(paymentForm.amount) <= 0) {
+      notify.error('أدخل المبلغ صحيحاً');
+      return;
+    }
+    addDoctorPayment({
+      doctorId: paymentDoctor.id,
+      doctorName: paymentDoctor.name,
+      amount: Number(paymentForm.amount),
+      date: paymentForm.date,
+      note: paymentForm.note.trim() || undefined
+    });
+    notify.success('تم تسجيل الدفعة');
+    setIsPaymentModalOpen(false);
+    setPaymentDoctor(null);
+  };
 
 
 
   // وظائف إدارة الأطباء
   const handleAddDoctor = async () => {
-    // التحقق من جميع الحقول الإجبارية
-    if (!formData.name.trim() || !formData.phone.trim() || !formData.specialization.trim()) {
-      return; // لا نفعل شيء إذا كانت الحقول فارغة
-    }
+    if (!formData.name.trim()) return;
 
-    // التحقق من أن الاسم يبدأ بـ "د."
-    if (!formData.name.trim().startsWith('د. ')) {
-      setConfirmModalConfig({
-        title: 'خطأ في الاسم',
-        message: 'يجب أن يبدأ اسم الطبيب بـ "د."',
-        onConfirm: () => setIsConfirmModalOpen(false),
-        type: 'danger'
-      });
-      setIsConfirmModalOpen(true);
-      return;
-    }
-
-    // التحقق من عدم تكرار الاسم
     const existingDoctor = getAllDoctors().find(doctor =>
       doctor.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
     );
-
     if (existingDoctor) {
       setConfirmModalConfig({
         title: 'اسم مكرر',
-        message: `الطبيب "${formData.name.trim()}" موجود بالفعل. يرجى اختيار اسم آخر.`,
+        message: `الطبيب "${formData.name.trim()}" موجود بالفعل.`,
         onConfirm: () => setIsConfirmModalOpen(false),
         type: 'warning'
       });
@@ -80,23 +87,16 @@ const Doctors = () => {
     try {
       await addDoctor({
         name: formData.name.trim(),
-        phone: formData.phone.trim(),
-        specialization: formData.specialization.trim(),
-        email: '',
-        workDays: [],
-        workHours: { start: '09:00', end: '17:00' },
-        experience: 0
+        phone: formData.phone.trim() || undefined,
+        email: formData.email.trim() || undefined
       });
-
-      // إغلاق النافذة المنبثقة
       setIsModalOpen(false);
       resetForm();
-
     } catch (error) {
       console.error('خطأ في إضافة الطبيب:', error);
       setConfirmModalConfig({
         title: 'خطأ في الإضافة',
-        message: 'حدث خطأ في إضافة الطبيب. يرجى المحاولة مرة أخرى.',
+        message: (error as Error).message || 'حدث خطأ في إضافة الطبيب.',
         onConfirm: () => setIsConfirmModalOpen(false),
         type: 'danger'
       });
@@ -105,16 +105,7 @@ const Doctors = () => {
   };
 
   const resetForm = () => {
-    setFormData({
-      name: 'د. ',
-      phone: '',
-      specialization: '',
-      email: '',
-      workDays: [],
-      workHours: { start: '09:00', end: '17:00' },
-      experience: 0,
-      isActive: true
-    });
+    setFormData({ name: '', phone: '', email: '' });
   };
 
   const handleToggleDoctorStatus = async (doctor: Doctor) => {
@@ -155,20 +146,10 @@ const Doctors = () => {
   };
 
   const openAddModal = () => {
-    setFormData({
-      name: 'د. ',
-      specialization: '',
-      phone: '',
-      email: '',
-      workDays: [],
-      workHours: { start: '09:00', end: '17:00' },
-      experience: 0,
-      isActive: true
-    });
+    setFormData({ name: '', phone: '', email: '' });
     setIsModalOpen(true);
   };
 
-  // Table columns
   const columns = [
     {
       header: 'الاسم',
@@ -176,12 +157,12 @@ const Doctors = () => {
       className: 'font-medium text-gray-900'
     },
     {
-      header: 'التخصص',
-      accessor: 'specialization' as keyof Doctor
+      header: 'رقم الهاتف',
+      accessor: (d: Doctor) => d.phone ?? '—'
     },
     {
-      header: 'رقم الهاتف',
-      accessor: 'phone' as keyof Doctor
+      header: 'البريد',
+      accessor: (d: Doctor) => d.email ?? '—'
     },
     {
       header: 'الحالة',
@@ -226,30 +207,8 @@ const Doctors = () => {
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-
-    if (type === 'checkbox') {
-      const { checked } = e.target as HTMLInputElement;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      // معالجة خاصة لحقل الاسم للتأكد من وجود "د." في البداية
-      if (name === 'name') {
-        let newValue = value;
-        // إذا لم يبدأ النص بـ "د. " أو تم حذفه، أعده
-        if (!newValue.startsWith('د. ')) {
-          // إذا كان النص فارغ أو لا يحتوي على "د."، أضف "د. "
-          if (newValue === '' || !newValue.includes('د.')) {
-            newValue = 'د. ' + newValue.replace(/^د\.?\s*/, '');
-          } else {
-            // إذا كان يحتوي على "د." لكن ليس في البداية الصحيحة، أصلحه
-            newValue = 'د. ' + newValue.replace(/^د\.?\s*/, '');
-          }
-        }
-        setFormData(prev => ({ ...prev, [name]: newValue }));
-      } else {
-        setFormData(prev => ({ ...prev, [name]: value }));
-      }
-    }
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
 
@@ -281,6 +240,99 @@ const Doctors = () => {
           emptyMessage="لا يوجد أطباء"
         />
       </div>
+
+      {/* Doctors' Accounts */}
+      <div className="bg-white shadow overflow-hidden rounded-lg p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <BanknotesIcon className="h-6 w-6 text-primary-600" />
+          حسابات الأطباء
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDoctors.map(doctor => {
+            const payments = getPaymentsByDoctorId(doctor.id);
+            const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+            const treatmentsCount = getTreatmentsByDoctor(doctor.id).length;
+            return (
+              <div key={doctor.id} className="border border-gray-200 rounded-lg p-4">
+                <p className="font-medium text-gray-900">{doctor.name}</p>
+                <p className="text-sm text-gray-600 mt-1">إجمالي المدفوع: {totalPaid}</p>
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <ClipboardDocumentListIcon className="h-4 w-4" />
+                  عدد العلاجات: {treatmentsCount}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenPaymentModal(doctor)}
+                  className="mt-3 px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+                >
+                  إضافة دفعة
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {filteredDoctors.length === 0 && (
+          <p className="text-gray-500 text-sm">لا يوجد أطباء. أضف أطباء أولاً ثم ستظهر حساباتهم هنا.</p>
+        )}
+      </div>
+
+      {/* Add Doctor Payment Modal */}
+      {isPaymentModalOpen && paymentDoctor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">إضافة دفعة للطبيب: {paymentDoctor.name}</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={paymentForm.amount}
+                  onChange={e => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                <input
+                  type="date"
+                  value={paymentForm.date}
+                  onChange={e => setPaymentForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظة</label>
+                <input
+                  type="text"
+                  value={paymentForm.note}
+                  onChange={e => setPaymentForm(prev => ({ ...prev, note: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  placeholder="اختياري"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setIsPaymentModalOpen(false); setPaymentDoctor(null); }}
+                className="px-4 py-2 rounded-lg border border-gray-300"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDoctorPayment}
+                disabled={!paymentForm.amount || Number(paymentForm.amount) <= 0}
+                className="px-4 py-2 rounded-lg bg-primary-600 text-white disabled:opacity-50"
+              >
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Doctor Modal */}
       {isModalOpen && (
@@ -328,22 +380,14 @@ const Doctors = () => {
                     value={formData.name}
                     onChange={handleFormChange}
                     className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                    placeholder="د. أدخل اسم الطبيب"
+                    placeholder="اسم الطبيب"
                     required
-                    onFocus={(e) => {
-                      // وضع المؤشر بعد "د. " عند التركيز
-                      if (e.target.value === 'د. ') {
-                        setTimeout(() => {
-                          e.target.setSelectionRange(3, 3);
-                        }, 0);
-                      }
-                    }}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                    رقم الهاتف <span className="text-red-500">*</span>
+                    رقم الهاتف
                   </label>
                   <input
                     id="phone"
@@ -351,29 +395,25 @@ const Doctors = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={handleFormChange}
-                    placeholder="مثال: 0501234567"
+                    placeholder="اختياري"
                     className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                    required
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="specialization" className="block text-sm font-medium text-gray-700 mb-1">
-                    التخصص <span className="text-red-500">*</span>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    البريد الإلكتروني
                   </label>
                   <input
-                    id="specialization"
-                    name="specialization"
-                    type="text"
-                    value={formData.specialization}
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
                     onChange={handleFormChange}
-                    placeholder="مثال: طب الأسنان العام"
+                    placeholder="اختياري"
                     className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                    required
                   />
                 </div>
-
-
             </div>
 
               <div className="mt-6 flex justify-end space-x-4 rtl:space-x-reverse pt-4 border-t border-gray-200">
@@ -388,15 +428,13 @@ const Doctors = () => {
                 <button
                   type="button"
                   className={`px-6 py-2 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white ${
-                    (!formData.name.trim() || !formData.phone.trim() || !formData.specialization.trim())
-                      ? 'opacity-50 cursor-not-allowed'
-                      : ''
+                    !formData.name.trim() ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                   style={{
                     background: 'linear-gradient(135deg, #2A7B9B 0%, #8A85B3 50%, #A472AE 100%)'
                   }}
                   onClick={handleSubmit}
-                  disabled={!formData.name.trim() || !formData.phone.trim() || !formData.specialization.trim()}
+                  disabled={!formData.name.trim()}
                 >
                   إضافة الطبيب
                 </button>

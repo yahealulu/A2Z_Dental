@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useDoctorStore } from './doctorStore';
+import { useInvoiceStore } from './invoiceStore';
 
 // تعريف نموذج الجلسة
 export interface TreatmentSession {
@@ -22,17 +23,21 @@ export interface Treatment {
   cost: number;
   startDate: string; // تاريخ بداية العلاج
   endDate?: string; // تاريخ انتهاء العلاج (عند الإكمال)
-  status: 'in_progress' | 'completed' | 'cancelled_incomplete' | 'cancelled_no_sessions';
-  isStarted?: boolean; // هل تم بدء العلاج (إضافة التكلفة لحساب المريض)
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled_incomplete' | 'cancelled_no_sessions';
+  isStarted?: boolean;
+  invoiceId?: number; // ربط الفاتورة عند "بدء العلاج"
   teethNumbers?: number[];
+  jaw?: 'upper' | 'lower'; // للعلاجات حسب الفك
   doctorId?: number;
-  doctorName?: string; // اسم الطبيب محفوظ وقت إنشاء العلاج
-  sessions: TreatmentSession[]; // قائمة الجلسات
-  finalNotes?: string; // ملاحظات نهائية عند الإكمال أو الإلغاء
-  cancelReason?: string; // سبب الإلغاء (إن وجد)
+  doctorName?: string;
+  sessions: TreatmentSession[];
+  finalNotes?: string;
+  cancelReason?: string;
   createdAt?: string;
   updatedAt?: string;
   isActive?: boolean;
+  procedureId?: number; // إحالة إلى إجراء من procedureStore
+  procedureCode?: string;
 }
 
 // قالب العلاج (العلاجات الثابتة المتاحة في العيادة)
@@ -79,11 +84,23 @@ interface TreatmentState {
 
   // الأفعال الأساسية للعلاجات
   addTreatment: (treatment: Omit<Treatment, 'id' | 'sessions' | 'createdAt' | 'updatedAt'>, firstSessionNotes?: string) => Promise<number>;
+  addPlannedTreatment: (treatment: Omit<Treatment, 'id' | 'sessions' | 'createdAt' | 'updatedAt'>) => Promise<number>;
+  addPastTreatment: (treatment: Omit<Treatment, 'id' | 'sessions' | 'createdAt' | 'updatedAt'>) => Promise<number>;
+  startTreatment: (treatmentId: number, invoiceData: {
+    subtotal: number;
+    diagnosticFeeOrExtra?: number;
+    discountValue: number;
+    discountType: 'percent' | 'amount';
+    totalAfterDiscount: number;
+    doctorId?: number;
+    doctorName?: string;
+  }) => Promise<number>; // returns invoice id
   updateTreatment: (id: number, treatment: Partial<Treatment>) => Promise<boolean>;
   deleteTreatment: (id: number) => Promise<boolean>;
   completeTreatment: (id: number, finalNotes?: string, newCost?: number) => Promise<boolean>;
   cancelTreatment: (id: number, saveToRecord: boolean, cancelReason?: string) => Promise<boolean>;
   updateTreatmentCost: (id: number, newCost: number) => Promise<boolean>;
+  getPlannedTreatmentsByPatient: (patientId: number) => Treatment[];
 
   // الأفعال الأساسية للجلسات
   addSession: (treatmentId: number, notes: string, sessionDate?: string) => Promise<TreatmentSession>;
@@ -284,27 +301,107 @@ export const useTreatmentStore = create<TreatmentState>()(
         }
       },
 
-      // تحديث علاج موجود
+      addPlannedTreatment: async (treatmentData) => {
+        const newId = get().lastId + 1;
+        const now = new Date().toISOString();
+        let doctorName: string | undefined;
+        if (treatmentData.doctorId) {
+          const doctor = useDoctorStore.getState().getDoctorById(treatmentData.doctorId);
+          doctorName = doctor?.name;
+        }
+        const newTreatment: Treatment = {
+          ...treatmentData,
+          id: newId,
+          doctorName,
+          status: 'planned',
+          isStarted: false,
+          invoiceId: undefined,
+          sessions: [],
+          createdAt: now,
+          updatedAt: now,
+          isActive: true
+        };
+        set(state => ({ treatments: [...state.treatments, newTreatment], lastId: newId }));
+        return newId;
+      },
+
+      addPastTreatment: async (treatmentData) => {
+        const newId = get().lastId + 1;
+        const now = new Date().toISOString();
+        let doctorName: string | undefined;
+        if (treatmentData.doctorId) {
+          const doctor = useDoctorStore.getState().getDoctorById(treatmentData.doctorId);
+          doctorName = doctor?.name;
+        }
+        const newTreatment: Treatment = {
+          ...treatmentData,
+          id: newId,
+          doctorName,
+          status: 'completed',
+          isStarted: true,
+          endDate: treatmentData.startDate,
+          sessions: [],
+          createdAt: now,
+          updatedAt: now,
+          isActive: true
+        };
+        set(state => ({ treatments: [...state.treatments, newTreatment], lastId: newId }));
+        return newId;
+      },
+
+      startTreatment: async (treatmentId, invoiceData) => {
+        const treatment = get().getTreatmentById(treatmentId);
+        if (!treatment) throw new Error('العلاج غير موجود');
+        if (treatment.status !== 'planned') throw new Error('العلاج غير مخطط أو بدأ مسبقاً');
+        const invoiceId = useInvoiceStore.getState().addInvoice({
+          patientId: treatment.patientId,
+          treatmentId: treatment.id,
+          date: new Date().toISOString().split('T')[0],
+          subtotal: invoiceData.subtotal,
+          diagnosticFeeOrExtra: invoiceData.diagnosticFeeOrExtra ?? 0,
+          discountValue: invoiceData.discountValue,
+          discountType: invoiceData.discountType,
+          totalAfterDiscount: invoiceData.totalAfterDiscount,
+          doctorId: invoiceData.doctorId,
+          doctorName: invoiceData.doctorName
+        });
+        const now = new Date().toISOString();
+        set(state => ({
+          treatments: state.treatments.map(t =>
+            t.id === treatmentId
+              ? {
+                  ...t,
+                  status: 'in_progress' as const,
+                  isStarted: true,
+                  invoiceId,
+                  cost: invoiceData.totalAfterDiscount,
+                  updatedAt: now
+                }
+              : t
+          )
+        }));
+        return invoiceId;
+      },
+
+      getPlannedTreatmentsByPatient: (patientId) =>
+        get().treatments.filter(t => t.patientId === patientId && t.status === 'planned' && t.isActive !== false),
+
       updateTreatment: async (id, updatedFields) => {
         try {
-          const validation = validateTreatmentData(updatedFields);
-          if (!validation.isValid) {
-            throw new Error(validation.errors.join(', '));
-          }
-
           const treatment = get().treatments.find(t => t.id === id);
-          if (!treatment) {
-            throw new Error('العلاج غير موجود');
+          if (!treatment) throw new Error('العلاج غير موجود');
+          const hasValidatable = ['name', 'patientId', 'cost', 'startDate'].some(k => k in updatedFields);
+          if (hasValidatable) {
+            const full = { ...treatment, ...updatedFields };
+            const validation = validateTreatmentData(full);
+            if (!validation.isValid) throw new Error(validation.errors.join(', '));
           }
-
+          const now = new Date().toISOString();
           set(state => ({
-            treatments: state.treatments.map(treatment =>
-              treatment.id === id
-                ? { ...treatment, ...updatedFields, updatedAt: new Date().toISOString() }
-                : treatment
+            treatments: state.treatments.map(t =>
+              t.id === id ? { ...t, ...updatedFields, updatedAt: now } : t
             )
           }));
-
           return true;
         } catch (error) {
           return false;
@@ -391,7 +488,7 @@ export const useTreatmentStore = create<TreatmentState>()(
                 t.id === id
                   ? {
                       ...t,
-                      status: status as const,
+                      status,
                       endDate: now,
                       cancelReason: cancelReason.trim() || undefined,
                       updatedAt: now
@@ -792,7 +889,7 @@ export const useTreatmentStore = create<TreatmentState>()(
           completed: activeTreatments.filter(t => t.status === 'completed').length,
           inProgress: activeTreatments.filter(t => t.status === 'in_progress').length,
           planned: activeTreatments.filter(t => t.status === 'planned').length,
-          cancelled: activeTreatments.filter(t => t.status === 'cancelled').length,
+          cancelled: activeTreatments.filter(t => t.status === 'cancelled_incomplete' || t.status === 'cancelled_no_sessions').length,
           totalRevenue,
           averageCost: activeTreatments.length > 0 ? totalRevenue / activeTreatments.length : 0
         };
@@ -808,7 +905,7 @@ export const useTreatmentStore = create<TreatmentState>()(
         return get().treatments
           .filter(t => {
             if (t.status !== 'completed' || t.isActive === false) return false;
-            const treatmentDate = new Date(t.date);
+            const treatmentDate = new Date(t.endDate || t.startDate);
             return treatmentDate.getFullYear() === year && treatmentDate.getMonth() === month - 1;
           })
           .reduce((sum, t) => sum + t.cost, 0);

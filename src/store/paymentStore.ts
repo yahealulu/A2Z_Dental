@@ -10,6 +10,9 @@ export interface Payment {
   amount: number;
   paymentDate: string;
   notes?: string;
+  invoiceId?: number; // ربط الدفعة بفاتورة
+  paymentMethod: string; // طريقة الدفع (نقداً، تحويل، إلخ)
+  recordedBy?: string; // من سجّل الدفعة (حساب الممرضة/الطبيب)
 }
 
 // تعريف نموذج الإحصائيات
@@ -38,8 +41,10 @@ interface PaymentState {
   // الأفعال
   addPayment: (payment: Omit<Payment, 'id'>) => void;
   updatePayment: (id: number, payment: Partial<Payment>) => void;
-  deletePayment: (id: number) => void;
+  deletePayment: (id: number) => void; // لا يحذف فعلياً (سلامة البيانات) - للإبقاء على التوافق
   getPaymentsByPatientId: (patientId: number) => Payment[];
+  getPaymentsByInvoiceId: (invoiceId: number) => Payment[];
+  getTotalPaidByInvoiceId: (invoiceId: number) => number;
   getTotalPaidByPatientId: (patientId: number) => number;
   getTotalPaid: () => number;
 
@@ -101,10 +106,11 @@ export const usePaymentStore = create<PaymentState>()(
       addPayment: (payment) => {
         set(state => {
           const newId = state.lastId + 1;
-          const newPayment = {
+          const newPayment: Payment = {
             ...payment,
             id: newId,
             paymentDate: payment.paymentDate || format(new Date(), 'yyyy-MM-dd'),
+            paymentMethod: payment.paymentMethod ?? 'نقداً'
           };
 
           return {
@@ -113,7 +119,6 @@ export const usePaymentStore = create<PaymentState>()(
           };
         });
 
-        // مسح الـ cache بعد إضافة دفعة جديدة
         get()._clearCache();
       },
 
@@ -133,14 +138,20 @@ export const usePaymentStore = create<PaymentState>()(
         get()._clearCache();
       },
 
-      // حذف دفعة
-      deletePayment: (id) => {
-        set(state => ({
-          payments: state.payments.filter(payment => payment.id !== id)
-        }));
+      // حذف دفعة - غير مسموح (سلامة البيانات): لا تنفيذ فعلي
+      deletePayment: (_id) => {
+        // لا حذف للدفعات - التعديل فقط مسموح
+        return;
+      },
 
-        // مسح الـ cache بعد الحذف
-        get()._clearCache();
+      getPaymentsByInvoiceId: (invoiceId) => {
+        return get().payments.filter(p => p.invoiceId === invoiceId);
+      },
+
+      getTotalPaidByInvoiceId: (invoiceId) => {
+        return get()
+          .payments.filter(p => p.invoiceId === invoiceId)
+          .reduce((sum, p) => sum + p.amount, 0);
       },
 
       // الحصول على دفعات مريض معين
@@ -362,17 +373,17 @@ export const usePaymentStore = create<PaymentState>()(
     {
       name: 'dental-payments-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
-        if (version === 0) {
+        if (persistedState?.payments && version < 2) {
           return {
             ...persistedState,
-            version: 1,
-            payments: persistedState.payments?.map((payment: any) => ({
-              ...payment,
-              createdAt: payment.createdAt || new Date().toISOString(),
-              updatedAt: payment.updatedAt || new Date().toISOString()
-            })) || []
+            payments: persistedState.payments.map((p: any) => ({
+              ...p,
+              paymentMethod: p.paymentMethod ?? 'نقداً',
+              invoiceId: p.invoiceId,
+              recordedBy: p.recordedBy
+            }))
           };
         }
         return persistedState;

@@ -10,13 +10,15 @@ import {
   PlusIcon,
   XMarkIcon,
   BanknotesIcon,
-  PhotoIcon
+  PhotoIcon,
+  ShareIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import ActionButton from '../components/ActionButton';
 import DentalHistory from '../components/DentalHistory';
 import AddTreatmentModal from '../components/AddTreatmentModal';
 import AddPaymentModal from '../components/AddPaymentModal';
+import StartTreatmentModal from '../components/StartTreatmentModal';
 import OptimizedTreatmentsList from '../components/OptimizedTreatmentsList';
 import OptimizedPaymentsList from '../components/OptimizedPaymentsList';
 import ImprovedXRayGallery from '../components/ImprovedXRayGallery';
@@ -27,14 +29,136 @@ import { ISOTeeth } from '../data/types';
 import { usePatientStore, type Patient } from '../store/patientStore';
 import { useAppointmentStore } from '../store/appointmentStore';
 import { useTreatmentStore, type Treatment } from '../store/treatmentStore';
+import CompleteTreatmentModal from '../components/CompleteTreatmentModal';
 import { usePaymentStore } from '../store/paymentStore';
+import { useInvoiceStore } from '../store/invoiceStore';
+import { usePrescriptionStore } from '../store/prescriptionStore';
+import { usePatientFileStore } from '../store/patientFileStore';
+import { useShareStore } from '../store/shareStore';
 import { formatCurrency } from '../utils/formatters';
 import { notify } from '../store/notificationStore';
 import { useSectionedLoading, usePaymentDistributionCache, clearPatientCache } from '../hooks/usePatientDetailsOptimization';
 import ConfirmationModal from '../components/ConfirmationModal';
 
+function PrescriptionsTabContent({ patientId }: { patientId: number }) {
+  const { getPrescriptionsByPatientId } = usePrescriptionStore();
+  const list = getPrescriptionsByPatientId(patientId);
+  return (
+    <div className="bg-white shadow rounded-lg overflow-hidden p-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">الوصفات</h3>
+      {list.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead><tr className="text-right"><th className="px-2 py-1 text-sm font-medium text-gray-700">الدواء</th><th className="px-2 py-1 text-sm font-medium text-gray-700">الجرعة</th><th className="px-2 py-1 text-sm font-medium text-gray-700">النوع</th><th className="px-2 py-1 text-sm font-medium text-gray-700">الأيام</th><th className="px-2 py-1 text-sm font-medium text-gray-700">التاريخ</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {list.map(p => (
+              <tr key={p.id}><td className="px-2 py-1 text-sm">{p.medicineName}</td><td className="px-2 py-1 text-sm">{p.dosage}</td><td className="px-2 py-1 text-sm">{p.type}</td><td className="px-2 py-1 text-sm">{p.numberOfDays}</td><td className="px-2 py-1 text-sm">{p.date}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-gray-500 text-sm">لا توجد وصفات</p>
+      )}
+    </div>
+  );
+}
 
+function InvoicesTabContent({ patientId }: { patientId: number }) {
+  const { getInvoicesByPatientId } = useInvoiceStore();
+  const { getTotalPaidByInvoiceId } = usePaymentStore();
+  const invoices = getInvoicesByPatientId(patientId);
+  return (
+    <div className="bg-white shadow rounded-lg overflow-hidden p-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">الفواتير</h3>
+      {invoices.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead><tr className="text-right"><th className="px-2 py-1 text-sm font-medium text-gray-700">رقم الفاتورة</th><th className="px-2 py-1 text-sm font-medium text-gray-700">التاريخ</th><th className="px-2 py-1 text-sm font-medium text-gray-700">الإجمالي</th><th className="px-2 py-1 text-sm font-medium text-gray-700">المدفوع</th><th className="px-2 py-1 text-sm font-medium text-gray-700">المتبقي</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {invoices.map(inv => {
+              const paid = getTotalPaidByInvoiceId(inv.id);
+              const status = paid >= inv.totalAfterDiscount ? 'مدفوع' : paid > 0 ? 'جزئي' : 'غير مدفوع';
+              return (
+                <tr key={inv.id}><td className="px-2 py-1 text-sm">{inv.invoiceNumber}</td><td className="px-2 py-1 text-sm">{inv.date}</td><td className="px-2 py-1 text-sm">{inv.totalAfterDiscount}</td><td className="px-2 py-1 text-sm">{paid}</td><td className="px-2 py-1 text-sm">{inv.totalAfterDiscount - paid}</td></tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-gray-500 text-sm">لا توجد فواتير</p>
+      )}
+    </div>
+  );
+}
 
+function PaymentsTabContent({ patientId }: { patientId: number }) {
+  const { getPaymentsByPatientId } = usePaymentStore();
+  const payments = getPaymentsByPatientId(patientId);
+  return (
+    <div className="bg-white shadow rounded-lg overflow-hidden p-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">المدفوعات</h3>
+      {payments.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead><tr className="text-right"><th className="px-2 py-1 text-sm font-medium text-gray-700">التاريخ</th><th className="px-2 py-1 text-sm font-medium text-gray-700">المبلغ</th><th className="px-2 py-1 text-sm font-medium text-gray-700">طريقة الدفع</th><th className="px-2 py-1 text-sm font-medium text-gray-700">ملاحظات</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {payments.map(p => (
+              <tr key={p.id}><td className="px-2 py-1 text-sm">{p.paymentDate}</td><td className="px-2 py-1 text-sm">{p.amount}</td><td className="px-2 py-1 text-sm">{p.paymentMethod ?? '—'}</td><td className="px-2 py-1 text-sm">{p.notes ?? '—'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-gray-500 text-sm">لا توجد مدفوعات</p>
+      )}
+    </div>
+  );
+}
+
+function FilesTabContent({ patientId }: { patientId: number }) {
+  const { getFilesByPatientId } = usePatientFileStore();
+  const files = getFilesByPatientId(patientId);
+  return (
+    <div className="bg-white shadow rounded-lg overflow-hidden p-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">الملفات</h3>
+      {files.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {files.map(f => (
+            <div key={f.id} className="border rounded-lg p-2">
+              {f.image && <img src={f.image} alt={f.title} className="w-full h-24 object-cover rounded" />}
+              <p className="text-sm font-medium mt-1">{f.title}</p>
+              {f.note && <p className="text-xs text-gray-500">{f.note}</p>}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm">لا توجد ملفات</p>
+      )}
+    </div>
+  );
+}
+
+function RecordsTabContent({ patientId }: { patientId: number }) {
+  const { getTreatmentsByPatient } = useTreatmentStore();
+  const all = getTreatmentsByPatient(patientId).filter(t => t.isActive !== false);
+  return (
+    <div className="bg-white shadow rounded-lg overflow-hidden p-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">سجل العلاجات</h3>
+      {all.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead><tr className="text-right"><th className="px-2 py-1 text-sm font-medium text-gray-700">السن/الفك</th><th className="px-2 py-1 text-sm font-medium text-gray-700">نوع العلاج</th><th className="px-2 py-1 text-sm font-medium text-gray-700">الحالة</th></tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {all.map(t => (
+              <tr key={t.id}>
+                <td className="px-2 py-1 text-sm">{t.teethNumbers?.length ? t.teethNumbers.join(', ') : t.jaw ?? '—'}</td>
+                <td className="px-2 py-1 text-sm">{t.name}</td>
+                <td className="px-2 py-1 text-sm">{t.status === 'completed' ? 'مكتمل' : t.status === 'in_progress' ? 'قيد التنفيذ' : t.status === 'planned' ? 'مخطط' : t.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-gray-500 text-sm">لا توجد سجلات</p>
+      )}
+    </div>
+  );
+}
 
 
 
@@ -44,7 +168,8 @@ const PatientDetails = () => {
   const navigate = useNavigate();
   const { patients: zustandPatients } = usePatientStore();
   const { getAppointmentsByPatientId } = useAppointmentStore();
-  const [activeTab, setActiveTab] = useState<'info' | 'dental' | 'xray' | 'appointments' | 'payment'>('info');
+  type PatientTab = 'info' | 'dental' | 'appointments' | 'prescriptions' | 'invoices' | 'payments' | 'files' | 'records' | 'xray' | 'payment';
+  const [activeTab, setActiveTab] = useState<PatientTab>('info');
   const [patientState, setPatientState] = useState<Patient | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedPatient, setEditedPatient] = useState<Patient | null>(null);
@@ -56,11 +181,14 @@ const PatientDetails = () => {
   // استخدام المتاجر الحقيقية مع النظام الهجين
   const {
     getTreatmentsByPatient,
+    getPlannedTreatmentsByPatient,
     getCompletedTreatmentsByPatientAfterClosure,
     getTotalCostByPatientIdCompletedAfterClosure,
     getPaymentDistributionCompletedAfterClosure,
-    getPaymentDistribution, // للعلاجات النشطة (المبدوءة)
-    getRemainingCostByPatientId // للعلاجات النشطة
+    getPaymentDistribution,
+    getRemainingCostByPatientId,
+    startTreatment,
+    completeTreatment
   } = useTreatmentStore();
   const {
     getPaymentsByPatientIdAfterClosure,
@@ -120,10 +248,13 @@ const PatientDetails = () => {
     status: isFullyPaid ? 'paid' : paymentDistribution.remainingAmount <= 0 ? 'paid' : paymentDistribution.totalPaid > 0 ? 'partial' : 'unpaid'
   };
 
-  // حالة إضافة علاج جديد
   const [isAddingTreatment, setIsAddingTreatment] = useState(false);
+  const [dentalSubTab, setDentalSubTab] = useState<'planned' | 'in_progress' | 'completed'>('planned');
+  const [startTreatmentModalOpen, setStartTreatmentModalOpen] = useState(false);
+  const [selectedPlannedTreatment, setSelectedPlannedTreatment] = useState<Treatment | null>(null);
+  const [completeTreatmentModalOpen, setCompleteTreatmentModalOpen] = useState(false);
+  const [selectedInProgressTreatment, setSelectedInProgressTreatment] = useState<Treatment | null>(null);
 
-  // حالة إضافة علاج قديم (للأرشيف)
   const [isAddingOldTreatment, setIsAddingOldTreatment] = useState(false);
   const [isOldTreatmentModalAnimating, setIsOldTreatmentModalAnimating] = useState(false);
 
@@ -247,10 +378,10 @@ const PatientDetails = () => {
     }
   }, [patient]);
 
-  // تحميل القسم عند تغيير التبويب النشط (التحميل المقسم)
   useEffect(() => {
-    if (activeTab !== 'info') {
-      loadSection(activeTab);
+    const loadableTabs: PatientTab[] = ['dental', 'xray', 'appointments', 'payment'];
+    if (activeTab !== 'info' && loadableTabs.includes(activeTab)) {
+      loadSection(activeTab as 'dental' | 'xray' | 'appointments' | 'payment');
     }
   }, [activeTab, loadSection]);
 
@@ -293,7 +424,36 @@ const PatientDetails = () => {
     });
   };
 
-  // إضافة علاج قديم (للأرشيف)
+  const plannedTreatments = getPlannedTreatmentsByPatient(patientId);
+  const inProgressTreatments = getTreatmentsByPatient(patientId).filter(t => t.status === 'in_progress');
+  const completedTreatmentsList = getTreatmentsByPatient(patientId).filter(t => t.status === 'completed');
+
+  const handleStartTreatmentConfirm = async (data: import('../components/StartTreatmentModal').StartTreatmentInvoiceData) => {
+    if (!selectedPlannedTreatment) return;
+    try {
+      startTreatment(selectedPlannedTreatment.id, data);
+      setStartTreatmentModalOpen(false);
+      setSelectedPlannedTreatment(null);
+      setUpdateTrigger(prev => prev + 1);
+      notify.success('تم بدء العلاج وإنشاء الفاتورة');
+    } catch (e) {
+      notify.error((e as Error).message);
+    }
+  };
+
+  const handleCompleteTreatmentConfirm = async (finalNotes: string, newCost?: number) => {
+    if (!selectedInProgressTreatment) return;
+    try {
+      await completeTreatment(selectedInProgressTreatment.id, finalNotes, newCost);
+      setCompleteTreatmentModalOpen(false);
+      setSelectedInProgressTreatment(null);
+      setUpdateTrigger(prev => prev + 1);
+      notify.success('تم إنهاء العلاج');
+    } catch (e) {
+      notify.error((e as Error).message);
+    }
+  };
+
   const handleAddOldTreatment = async () => {
     // الحصول على قيمة الحقول من عناصر DOM مباشرة
     const nameInput = document.getElementById('old-treatment-name') as HTMLInputElement;
@@ -420,6 +580,20 @@ const PatientDetails = () => {
           <h1 className="text-2xl font-bold text-gray-800">
             {patient?.name || 'تحميل...'}
           </h1>
+          {patient && (
+            <button
+              type="button"
+              onClick={() => {
+                const token = useShareStore.getState().addShare(patient.id);
+                const url = `${window.location.origin}/share/${token}`;
+                navigator.clipboard.writeText(url).then(() => notify.success('تم نسخ رابط المشاركة')).catch(() => notify.error('تعذر النسخ'));
+              }}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <ShareIcon className="h-4 w-4" />
+              مشاركة الرابط
+            </button>
+          )}
         </div>
         {activeTab === 'info' && (
           !isEditing ? (
@@ -491,11 +665,30 @@ const PatientDetails = () => {
             السجل السني
           </button>
           <button
-            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${
-              activeTab === 'xray'
-                ? 'text-white shadow-lg'
-                : 'bg-white text-gray-600'
-            }`}
+            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'appointments' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`}
+            style={activeTab === 'appointments' ? { backgroundColor: '#33819E' } : {}}
+            onClick={() => setActiveTab('appointments')}
+          >
+            <CalendarIcon className={`h-5 w-5 ml-2 ${activeTab === 'appointments' ? 'text-white' : ''}`} style={activeTab === 'appointments' ? {} : { color: '#33819E' }} />
+            المواعيد
+          </button>
+          <button className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'prescriptions' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`} style={activeTab === 'prescriptions' ? { backgroundColor: '#33819E' } : {}} onClick={() => setActiveTab('prescriptions')}>
+            <span className="ml-2">الوصفات</span>
+          </button>
+          <button className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'invoices' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`} style={activeTab === 'invoices' ? { backgroundColor: '#33819E' } : {}} onClick={() => setActiveTab('invoices')}>
+            <span className="ml-2">الفواتير</span>
+          </button>
+          <button className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'payments' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`} style={activeTab === 'payments' ? { backgroundColor: '#33819E' } : {}} onClick={() => setActiveTab('payments')}>
+            <span className="ml-2">المدفوعات</span>
+          </button>
+          <button className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'files' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`} style={activeTab === 'files' ? { backgroundColor: '#33819E' } : {}} onClick={() => setActiveTab('files')}>
+            <span className="ml-2">الملفات</span>
+          </button>
+          <button className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'records' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`} style={activeTab === 'records' ? { backgroundColor: '#33819E' } : {}} onClick={() => setActiveTab('records')}>
+            <span className="ml-2">السجلات</span>
+          </button>
+          <button
+            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'xray' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`}
             style={activeTab === 'xray' ? { backgroundColor: '#33819E' } : {}}
             onClick={() => setActiveTab('xray')}
           >
@@ -503,23 +696,7 @@ const PatientDetails = () => {
             الصور الشعاعية
           </button>
           <button
-            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${
-              activeTab === 'appointments'
-                ? 'text-white shadow-lg'
-                : 'bg-white text-gray-600'
-            }`}
-            style={activeTab === 'appointments' ? { backgroundColor: '#33819E' } : {}}
-            onClick={() => setActiveTab('appointments')}
-          >
-            <CalendarIcon className={`h-5 w-5 ml-2 ${activeTab === 'appointments' ? 'text-white' : ''}`} style={activeTab === 'appointments' ? {} : { color: '#33819E' }} />
-            المواعيد
-          </button>
-          <button
-            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${
-              activeTab === 'payment'
-                ? 'text-white shadow-lg'
-                : 'bg-white text-gray-600'
-            }`}
+            className={`flex items-center py-4 px-6 font-bold text-base transition-all duration-200 ${activeTab === 'payment' ? 'text-white shadow-lg' : 'bg-white text-gray-600'}`}
             style={activeTab === 'payment' ? { backgroundColor: '#33819E' } : {}}
             onClick={() => setActiveTab('payment')}
           >
@@ -667,7 +844,7 @@ const PatientDetails = () => {
                     type="date"
                     name="birthdate"
                     id="birthdate"
-                    value={editedPatient?.birthdate || ''}
+                    value={editedPatient?.birthDate || ''}
                     onChange={handleInputChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
                     dir="ltr"
@@ -740,107 +917,131 @@ const PatientDetails = () => {
 
       {activeTab === 'dental' && (
         <div className="bg-white shadow rounded-lg overflow-hidden p-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
             <h3 className="text-lg font-medium text-gray-900">السجل السني</h3>
-            <button
-              onClick={handleOpenOldTreatmentModal}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 hover:shadow-lg hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg, #2A7B9B 0%, #8A85B3 50%, #A472AE 100%)'
-              }}
-            >
-              <PlusIcon className="h-4 w-4 ml-1 rtl:mr-1 rtl:ml-0" />
-              إضافة علاج قديم (أرشيف)
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setIsAddingTreatment(true); }}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+              >
+                <PlusIcon className="h-4 w-4 ml-1 rtl:mr-1" />
+                إضافة علاج
+              </button>
+              <button
+                onClick={handleOpenOldTreatmentModal}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+              >
+                إضافة علاج قديم (أرشيف)
+              </button>
+            </div>
           </div>
 
-          <DentalHistory
-            patientId={patient?.id}
-          />
+          <DentalHistory patientId={patient?.id} />
 
-          {/* ملخص الحالات السنية */}
-          <div className="mt-8 border-t border-gray-200 pt-6">
-            <h4 className="text-base font-medium text-gray-900 mb-4">ملخص الحالات السنية</h4>
+          <div className="flex gap-2 border-b border-gray-200 mb-4 mt-6">
+            {(['planned', 'in_progress', 'completed'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setDentalSubTab(tab)}
+                className={`px-4 py-2 rounded-t-lg text-sm font-medium ${
+                  dentalSubTab === tab ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {tab === 'planned' && 'مخطط'}
+                {tab === 'in_progress' && 'قيد التنفيذ'}
+                {tab === 'completed' && 'مكتمل'}
+              </button>
+            ))}
+          </div>
 
-            {treatments.length > 0 ? (
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead>
-                    <tr className="text-right" style={{
-                      background: 'linear-gradient(135deg, #2A7B9B 0%, #8A85B3 50%, #A472AE 100%)'
-                    }}>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-base font-bold text-white border-b border-white/20">العلاج</th>
-                      <th scope="col" className="px-3 py-3.5 text-base font-bold text-white border-b border-white/20">التاريخ</th>
-                      <th scope="col" className="px-3 py-3.5 text-base font-bold text-white border-b border-white/20">الأسنان</th>
-                      <th scope="col" className="px-3 py-3.5 text-base font-bold text-white border-b border-white/20">الملاحظات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {[...treatments]
-                      .sort((a, b) => {
-                        // ترتيب تنازلي حسب التاريخ (الأحدث أولاً)
-                        const dateA = a.status === 'completed' && a.endDate
-                          ? new Date(a.endDate)
-                          : new Date(a.startDate || a.date);
-                        const dateB = b.status === 'completed' && b.endDate
-                          ? new Date(b.endDate)
-                          : new Date(b.startDate || b.date);
-                        return dateB.getTime() - dateA.getTime();
-                      })
-                      .map(treatment => (
-                        <tr key={treatment.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-base font-medium text-gray-900">{treatment.name}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                            {(() => {
-                              try {
-                                // إذا كان العلاج مكتمل ولديه تاريخ انتهاء، استخدمه
-                                if (treatment.status === 'completed' && treatment.endDate) {
-                                  const endDate = new Date(treatment.endDate);
-                                  return isNaN(endDate.getTime()) ? 'تاريخ غير صالح' : format(endDate, 'dd/MM/yyyy');
-                                }
-                                // وإلا استخدم تاريخ البداية أو التاريخ العادي
-                                else if (treatment.startDate) {
-                                  const startDate = new Date(treatment.startDate);
-                                  return isNaN(startDate.getTime()) ? 'تاريخ غير صالح' : format(startDate, 'dd/MM/yyyy');
-                                }
-                                else if (treatment.date) {
-                                  const date = new Date(treatment.date);
-                                  return isNaN(date.getTime()) ? 'تاريخ غير صالح' : format(date, 'dd/MM/yyyy');
-                                }
-                                return 'غير محدد';
-                              } catch (error) {
-                                return 'تاريخ غير صالح';
-                              }
-                            })()}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                            {treatment.teethNumbers && treatment.teethNumbers.length > 0
-                              ? treatment.teethNumbers.join(', ')
-                              : 'غير محدد'}
-                          </td>
-                          <td className="px-3 py-4 text-base text-gray-500 max-w-xs">
-                            <div className="truncate" title={(() => {
-                              const notes = treatment.finalNotes || treatment.notes || '';
-                              return typeof notes === 'string' ? notes : '';
-                            })()}>
-                              {(() => {
-                                const notes = treatment.finalNotes || treatment.notes;
-                                if (!notes || typeof notes !== 'string' || notes.trim() === '') {
-                                  return '-';
-                                }
-                                return notes;
-                              })()}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+          {dentalSubTab === 'planned' && (
+            <div className="overflow-x-auto">
+              {plannedTreatments.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50"><tr className="text-right"><th className="px-3 py-2 text-sm font-medium text-gray-700">العلاج</th><th className="px-3 py-2 text-sm font-medium text-gray-700">التاريخ</th><th className="px-3 py-2 text-sm font-medium text-gray-700">الأسنان/الفك</th><th className="px-3 py-2 text-sm font-medium text-gray-700">إجراء</th></tr></thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {plannedTreatments.map(t => (
+                      <tr key={t.id}>
+                        <td className="px-3 py-2 text-sm text-gray-900">{t.name}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500">{format(new Date(t.startDate), 'dd/MM/yyyy')}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500">{t.teethNumbers?.length ? t.teethNumbers.join(', ') : t.jaw ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <button type="button" onClick={() => { setSelectedPlannedTreatment(t); setStartTreatmentModalOpen(true); }} className="text-sm text-primary-600 hover:underline">بدء العلاج</button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">لا توجد علاجات مسجلة</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-gray-500 text-sm py-4">لا توجد علاجات مخطط لها. استخدم «إضافة علاج» ثم اختر القالب وأضفه كعلاج مخطط.</p>
+              )}
+            </div>
+          )}
+
+          {dentalSubTab === 'in_progress' && (
+            <div className="overflow-x-auto">
+              {inProgressTreatments.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50"><tr className="text-right"><th className="px-3 py-2 text-sm font-medium text-gray-700">العلاج</th><th className="px-3 py-2 text-sm font-medium text-gray-700">التاريخ</th><th className="px-3 py-2 text-sm font-medium text-gray-700">إجراء</th></tr></thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {inProgressTreatments.map(t => (
+                      <tr key={t.id}>
+                        <td className="px-3 py-2 text-sm text-gray-900">{t.name}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500">{format(new Date(t.startDate), 'dd/MM/yyyy')}</td>
+                        <td className="px-3 py-2">
+                          <button type="button" onClick={() => { setSelectedInProgressTreatment(t); setCompleteTreatmentModalOpen(true); }} className="text-sm text-primary-600 hover:underline">إنهاء العلاج</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-sm py-4">لا توجد علاجات قيد التنفيذ</p>
+              )}
+            </div>
+          )}
+
+          {dentalSubTab === 'completed' && (
+            <div className="overflow-x-auto">
+              {completedTreatmentsList.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50"><tr className="text-right"><th className="px-3 py-2 text-sm font-medium text-gray-700">العلاج</th><th className="px-3 py-2 text-sm font-medium text-gray-700">التاريخ</th><th className="px-3 py-2 text-sm font-medium text-gray-700">الأسنان</th><th className="px-3 py-2 text-sm font-medium text-gray-700">ملاحظات</th></tr></thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {completedTreatmentsList.map(t => (
+                      <tr key={t.id}>
+                        <td className="px-3 py-2 text-sm text-gray-900">{t.name}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500">{t.endDate ? format(new Date(t.endDate), 'dd/MM/yyyy') : format(new Date(t.startDate), 'dd/MM/yyyy')}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500">{t.teethNumbers?.length ? t.teethNumbers.join(', ') : '—'}</td>
+                        <td className="px-3 py-2 text-sm text-gray-500 max-w-xs truncate">{t.finalNotes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-sm py-4">لا توجد علاجات مكتملة</p>
+              )}
+            </div>
+          )}
+
+          <AddTreatmentModal
+            isOpen={isAddingTreatment}
+            onClose={() => setIsAddingTreatment(false)}
+            patientId={patientId}
+            patientName={patient?.name ?? ''}
+            addAsPlanned={true}
+          />
+          <StartTreatmentModal
+            isOpen={startTreatmentModalOpen}
+            onClose={() => { setStartTreatmentModalOpen(false); setSelectedPlannedTreatment(null); }}
+            treatment={selectedPlannedTreatment}
+            onConfirm={handleStartTreatmentConfirm}
+          />
+          <CompleteTreatmentModal
+            isOpen={completeTreatmentModalOpen}
+            onClose={() => { setCompleteTreatmentModalOpen(false); setSelectedInProgressTreatment(null); }}
+            treatment={selectedInProgressTreatment}
+            onConfirm={handleCompleteTreatmentConfirm}
+          />
         </div>
       )}
 
@@ -980,6 +1181,22 @@ const PatientDetails = () => {
             ))}
           </ul>
         </div>
+      )}
+
+      {activeTab === 'prescriptions' && (
+        <PrescriptionsTabContent patientId={patientId} />
+      )}
+      {activeTab === 'invoices' && (
+        <InvoicesTabContent patientId={patientId} />
+      )}
+      {activeTab === 'payments' && (
+        <PaymentsTabContent patientId={patientId} />
+      )}
+      {activeTab === 'files' && (
+        <FilesTabContent patientId={patientId} />
+      )}
+      {activeTab === 'records' && (
+        <RecordsTabContent patientId={patientId} />
       )}
 
       {activeTab === 'payment' && (

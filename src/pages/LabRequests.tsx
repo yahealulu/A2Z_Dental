@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { format } from 'date-fns';
 import {
   PlusIcon,
   BeakerIcon,
@@ -7,10 +8,11 @@ import {
   TrashIcon,
   EyeIcon,
   EyeSlashIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { useLabRequestStore, initializeDefaultLabData, type LabRequest } from '../store/labRequestStore';
+import { useLabRequestStore, initializeDefaultLabData, type LabRequest, type Lab } from '../store/labRequestStore';
+import { useLabPaymentStore } from '../store/labPaymentStore';
 import { notify, useNotificationStore } from '../store/notificationStore';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AddLabRequestModal from '../components/AddLabRequestModal';
@@ -18,7 +20,8 @@ import Pagination from '../components/Pagination';
 
 const LabRequests = () => {
   // حالات المكونات
-  const [activeTab, setActiveTab] = useState<'requests' | 'history'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'history' | 'accounts'>('requests');
+  const [labPaymentModal, setLabPaymentModal] = useState<{ lab: Lab; amount: string; date: string; note: string } | null>(null);
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
   const [categoryType, setCategoryType] = useState<'labs' | 'workTypes'>('labs');
 
@@ -69,8 +72,10 @@ const LabRequests = () => {
     getReceivedRequests,
     getOverdueCount,
     getTodayDeliveryCount,
-    markAsReceived
+    markAsReceived,
+    getRequestsByLab
   } = useLabRequestStore();
+  const { addPayment: addLabPayment, getPaymentsByLabId } = useLabPaymentStore();
 
   // تهيئة البيانات الافتراضية عند تحميل المكون
   useEffect(() => {
@@ -439,6 +444,22 @@ const LabRequests = () => {
               }
             >
               عرض السجل ({allReceivedRequests.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('accounts')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                activeTab === 'accounts'
+                  ? 'text-white shadow-lg'
+                  : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+              }`}
+              style={
+                activeTab === 'accounts'
+                  ? { background: 'linear-gradient(135deg, #2A7B9B 0%, #8A85B3 50%, #A472AE 100%)' }
+                  : {}
+              }
+            >
+              <BanknotesIcon className="h-4 w-4 inline ml-1 rtl:mr-1 rtl:ml-0" />
+              حسابات المخابر
             </button>
           </div>
 
@@ -979,8 +1000,124 @@ const LabRequests = () => {
               </div>
             )}
           </div>
+        ) : (
+          /* تبويب حسابات المخابر */
+          <div className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <BanknotesIcon className="h-5 w-5" />
+              حسابات المخابر
+            </h3>
+            <div className="space-y-6">
+              {activeLabs.map(lab => {
+                const orders = getRequestsByLab(lab.id);
+                const payments = getPaymentsByLabId(lab.id);
+                const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+                return (
+                  <div key={lab.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start flex-wrap gap-2">
+                      <div>
+                        <p className="font-medium text-gray-900">{lab.name}</p>
+                        {lab.contactNumber && <p className="text-sm text-gray-600">{lab.contactNumber}</p>}
+                        <p className="text-sm text-gray-500 mt-1">الطلبات: {orders.length} — إجمالي المدفوع: {totalPaid}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLabPaymentModal({ lab, amount: '', date: format(new Date(), 'yyyy-MM-dd'), note: '' })}
+                        className="px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+                      >
+                        إضافة دفعة
+                      </button>
+                    </div>
+                    {payments.length > 0 && (
+                      <ul className="mt-3 text-sm text-gray-600 space-y-1">
+                        {payments.slice(0, 5).map(p => (
+                          <li key={p.id}>{p.date}: {p.amount} {p.note ? `- ${p.note}` : ''}</li>
+                        ))}
+                        {payments.length > 5 && <li>... و {payments.length - 5} أخرى</li>}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {activeLabs.length === 0 && (
+              <p className="text-gray-500 text-sm">لا يوجد مخابر. أضف مخابر من «إدارة الفئات» أولاً.</p>
+            )}
+          </div>
         )}
       </div>
+
+      {/* مودال إضافة دفعة لمخبر */}
+      {labPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">إضافة دفعة: {labPaymentModal.lab.name}</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={labPaymentModal.amount}
+                  onChange={e => setLabPaymentModal(prev => prev ? { ...prev, amount: e.target.value } : null)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                <input
+                  type="date"
+                  value={labPaymentModal.date}
+                  onChange={e => setLabPaymentModal(prev => prev ? { ...prev, date: e.target.value } : null)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظة</label>
+                <input
+                  type="text"
+                  value={labPaymentModal.note}
+                  onChange={e => setLabPaymentModal(prev => prev ? { ...prev, note: e.target.value } : null)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  placeholder="اختياري"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setLabPaymentModal(null)}
+                className="px-4 py-2 rounded-lg border border-gray-300"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!labPaymentModal || !labPaymentModal.amount || Number(labPaymentModal.amount) <= 0) {
+                    notify.error('أدخل المبلغ صحيحاً');
+                    return;
+                  }
+                  addLabPayment({
+                    labId: labPaymentModal.lab.id,
+                    labName: labPaymentModal.lab.name,
+                    amount: Number(labPaymentModal.amount),
+                    date: labPaymentModal.date,
+                    note: labPaymentModal.note.trim() || undefined
+                  });
+                  notify.success('تم تسجيل الدفعة');
+                  setLabPaymentModal(null);
+                }}
+                disabled={!labPaymentModal.amount || Number(labPaymentModal.amount) <= 0}
+                className="px-4 py-2 rounded-lg bg-primary-600 text-white disabled:opacity-50"
+              >
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* مودال تأكيد الحذف */}
       <ConfirmationModal

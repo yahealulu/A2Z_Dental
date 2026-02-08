@@ -16,6 +16,7 @@ export interface Settings {
     end: string;
   };
   workingDays: string[];
+  holidays: string[]; // تواريخ العطل YYYY-MM-DD
   appointmentDuration: number; // بالدقائق
 
   // إعدادات المواعيد
@@ -82,6 +83,7 @@ const DEFAULT_SETTINGS: Settings = {
     end: '18:00'
   },
   workingDays: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
+  holidays: [],
   appointmentDuration: 30,
 
   // إعدادات المواعيد
@@ -145,6 +147,7 @@ interface SettingsState {
   // إعدادات العمل
   updateWorkingHours: (hours: Settings['workingHours']) => Promise<boolean>;
   updateWorkingDays: (days: string[]) => Promise<boolean>;
+  updateHolidays: (holidays: string[]) => Promise<boolean>;
   updateAppointmentDuration: (duration: number) => Promise<boolean>;
 
   // إعدادات المواعيد
@@ -269,6 +272,10 @@ export const useSettingsStore = create<SettingsState>()(
 
       updateWorkingDays: async (days) => {
         return get().updateSettings({ workingDays: days });
+      },
+
+      updateHolidays: async (holidays) => {
+        return get().updateSettings({ holidays });
       },
 
       updateAppointmentDuration: async (duration) => {
@@ -414,26 +421,24 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'dental-settings-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
-        if (version === 0) {
+        const s = persistedState?.settings || {};
+        if (version < 2 && s.holidays === undefined) {
           return {
-            settings: {
-              ...DEFAULT_SETTINGS,
-              ...persistedState.settings,
-              lastUpdated: new Date().toISOString()
-            }
+            ...persistedState,
+            settings: { ...DEFAULT_SETTINGS, ...s, holidays: s.holidays ?? [] }
           };
         }
         return persistedState;
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // تم تحميل إعدادات النظام من localStorage
-
-          // تحديث الإعدادات إذا لم تكن موجودة
           if (!state.settings.createdAt) {
             state.settings.createdAt = new Date().toISOString();
+          }
+          if (!Array.isArray(state.settings.holidays)) {
+            state.settings.holidays = [];
           }
         }
       }

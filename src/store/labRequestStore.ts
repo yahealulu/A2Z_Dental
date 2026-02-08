@@ -6,6 +6,7 @@ import { format, differenceInDays } from 'date-fns';
 export interface Lab {
   id: number;
   name: string;
+  contactNumber?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -34,8 +35,9 @@ export interface LabRequest {
   color: string;
   deliveryDate: string; // تاريخ التسليم للمخبر
   expectedReturnDate: string; // تاريخ الاستلام المتوقع
-  status: 'pending' | 'received'; // حالة الطلب
-  receivedDate?: string; // تاريخ الاستلام الفعلي
+  status: 'pending' | 'cancelled' | 'received';
+  receivedDate?: string;
+  priceOnReceipt?: number; // السعر عند تأكيد الاستلام (لا يُضاف تلقائياً للمصروفات)
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -64,10 +66,12 @@ interface LabRequestState {
   version: number;
 
   // أفعال إدارة المخابر
-  addLab: (name: string) => Promise<number>;
-  updateLab: (id: number, name: string) => Promise<boolean>;
+  addLab: (data: { name: string; contactNumber?: string }) => Promise<number>;
+  updateLab: (id: number, data: { name?: string; contactNumber?: string }) => Promise<boolean>;
   deleteLab: (id: number) => Promise<boolean>;
   getActiveLabs: () => Lab[];
+  markAsCancelled: (requestId: number) => Promise<boolean>;
+  confirmReceipt: (requestId: number, priceOnReceipt?: number) => Promise<boolean>;
 
   // أفعال إدارة أنواع الأعمال
   addWorkType: (name: string) => Promise<number>;
@@ -83,6 +87,7 @@ interface LabRequestState {
   
   // البحث والتصفية
   getPendingRequests: () => LabRequest[];
+  getCancelledRequests: () => LabRequest[];
   getReceivedRequests: () => LabRequest[];
   getRequestsByLab: (labId: number) => LabRequest[];
   getRequestsByWorkType: (workTypeId: number) => LabRequest[];
@@ -238,56 +243,88 @@ export const useLabRequestStore = create<LabRequestState>()(
       version: 1,
 
       // أفعال إدارة المخابر
-      addLab: async (name) => {
+      addLab: async (data) => {
+        const name = typeof data === 'string' ? data : data.name;
+        const contactNumber = typeof data === 'string' ? undefined : data.contactNumber;
         try {
           const validation = validateLabData(name, get().labs);
-          if (!validation.isValid) {
-            throw new Error(validation.errors.join(', '));
-          }
+          if (!validation.isValid) throw new Error(validation.errors.join(', '));
 
           const newId = get().lastLabId + 1;
           const now = new Date().toISOString();
-
           const newLab: Lab = {
             id: newId,
             name: name.trim(),
+            contactNumber: contactNumber?.trim(),
             isActive: true,
             createdAt: now,
             updatedAt: now
           };
-
-          set(state => ({
-            labs: [...state.labs, newLab],
-            lastLabId: newId
-          }));
-
+          set(state => ({ labs: [...state.labs, newLab], lastLabId: newId }));
           return newId;
         } catch (error) {
           throw error;
         }
       },
 
-      updateLab: async (id, name) => {
+      updateLab: async (id, data) => {
+        const name = typeof data === 'string' ? data : data.name;
+        const contactNumber = typeof data === 'object' && data && 'contactNumber' in data ? data.contactNumber : undefined;
         try {
-          const validation = validateLabData(name, get().labs, id);
-          if (!validation.isValid) {
-            throw new Error(validation.errors.join(', '));
+          if (name !== undefined) {
+            const validation = validateLabData(name, get().labs, id);
+            if (!validation.isValid) throw new Error(validation.errors.join(', '));
           }
-
           const now = new Date().toISOString();
-
           set(state => ({
             labs: state.labs.map(lab =>
               lab.id === id
-                ? { ...lab, name: name.trim(), updatedAt: now }
+                ? {
+                    ...lab,
+                    ...(name !== undefined && { name: name.trim() }),
+                    ...(contactNumber !== undefined && { contactNumber: contactNumber?.trim() }),
+                    updatedAt: now
+                  }
                 : lab
             )
           }));
-
           return true;
         } catch (error) {
           throw error;
         }
+      },
+
+      markAsCancelled: async (requestId) => {
+        const req = get().labRequests.find(r => r.id === requestId);
+        if (!req) throw new Error('الطلب غير موجود');
+        const now = new Date().toISOString();
+        set(state => ({
+          labRequests: state.labRequests.map(r =>
+            r.id === requestId ? { ...r, status: 'cancelled' as const, updatedAt: now } : r
+          )
+        }));
+        return true;
+      },
+
+      confirmReceipt: async (requestId, priceOnReceipt) => {
+        const req = get().labRequests.find(r => r.id === requestId);
+        if (!req) throw new Error('الطلب غير موجود');
+        if (req.status === 'received') throw new Error('الطلب مستلم مسبقاً');
+        const now = new Date().toISOString();
+        set(state => ({
+          labRequests: state.labRequests.map(r =>
+            r.id === requestId
+              ? {
+                  ...r,
+                  status: 'received' as const,
+                  receivedDate: format(new Date(), 'yyyy-MM-dd'),
+                  priceOnReceipt,
+                  updatedAt: now
+                }
+              : r
+          )
+        }));
+        return true;
       },
 
       deleteLab: async (id) => {
@@ -479,37 +516,7 @@ export const useLabRequestStore = create<LabRequestState>()(
         }
       },
 
-      markAsReceived: async (id) => {
-        try {
-          const existingRequest = get().labRequests.find(req => req.id === id);
-          if (!existingRequest) {
-            throw new Error('الطلب غير موجود');
-          }
-
-          if (existingRequest.status === 'received') {
-            throw new Error('الطلب مستلم مسبقاً');
-          }
-
-          const now = new Date().toISOString();
-
-          set(state => ({
-            labRequests: state.labRequests.map(request =>
-              request.id === id
-                ? {
-                    ...request,
-                    status: 'received',
-                    receivedDate: format(new Date(), 'yyyy-MM-dd'),
-                    updatedAt: now
-                  }
-                : request
-            )
-          }));
-
-          return true;
-        } catch (error) {
-          throw error;
-        }
-      },
+      markAsReceived: async (id) => get().confirmReceipt(id),
 
       // البحث والتصفية
       getPendingRequests: () => {
@@ -517,6 +524,8 @@ export const useLabRequestStore = create<LabRequestState>()(
           .filter(request => request.status === 'pending')
           .sort((a, b) => new Date(a.expectedReturnDate).getTime() - new Date(b.expectedReturnDate).getTime());
       },
+
+      getCancelledRequests: () => get().labRequests.filter(r => r.status === 'cancelled'),
 
       getReceivedRequests: () => {
         return get().labRequests

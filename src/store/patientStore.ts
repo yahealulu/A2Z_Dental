@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { validatePhoneNational } from '../utils/phoneValidation';
 
 // تعريف نموذج بيانات المريض المحسن
 export interface Patient {
   id: number;
   name: string;
-  phone: string;
+  phone: string; // للعرض (يمكن أن يكون countryCode + مسافة + phoneNational)
   email?: string;
   birthDate?: string;
   gender?: 'male' | 'female';
@@ -16,8 +17,14 @@ export interface Patient {
   createdAt?: string;
   updatedAt?: string;
   isActive?: boolean;
-  // نظام تسكير الحساب
   accountClosures?: AccountClosure[];
+  // حقول إضافية حسب المتطلبات
+  internalClinicId?: number; // رقم تسلسلي داخل العيادة (بدون فجوات)
+  countryCode?: string; // رمز الدولة مثل +963
+  phoneNational?: string; // الأرقام فقط بعد رمز الدولة
+  distinctiveMark?: string; // علامة مميزة اختيارية
+  hashtagIds?: number[]; // وسوم للتصفية (VIP، صديق قديم، إلخ)
+  registeredBy?: string; // الحساب الذي سجّل المريض
 }
 
 // تعريف نموذج تسكير الحساب
@@ -54,10 +61,10 @@ export interface PatientStats {
 interface PatientState {
   patients: Patient[];
   lastId: number;
-  version: number; // لإدارة إصدارات البيانات
+  lastInternalClinicId: number; // للتسلسل الداخلي بدون فجوات
+  version: number;
 
-  // الأفعال الأساسية
-  addPatient: (patient: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>) => Promise<number>;
+  addPatient: (patient: Omit<Patient, 'id' | 'internalClinicId' | 'createdAt' | 'updatedAt'>) => Promise<number>;
   updatePatient: (id: number, patient: Partial<Patient>) => Promise<boolean>;
   deletePatient: (id: number) => Promise<boolean>;
   softDeletePatient: (id: number) => Promise<boolean>;
@@ -110,9 +117,12 @@ const validatePatientData = (patient: Partial<Patient>, existingPatients: Patien
     }
   }
 
-  // تعديل قيود رقم الهاتف: على الأقل 7 خانات، يمكن أن يبدأ بأي رقم
-  if (patient.phone && patient.phone.trim() !== '' && !/^\d{7,}$/.test(patient.phone)) {
-    errors.push('رقم الهاتف يجب أن يتكون من 7 خانات على الأقل (أو اتركه فارغاً)');
+  // التحقق من الهاتف: إن وُجد countryCode و phoneNational نتحقق من الطول حسب الدولة
+  if (patient.countryCode != null && patient.phoneNational != null) {
+    const result = validatePhoneNational(patient.countryCode, patient.phoneNational);
+    if (!result.valid && result.error) errors.push(result.error);
+  } else if (patient.phone && patient.phone.trim() !== '' && !/^\d{7,}$/.test(patient.phone.replace(/\D/g, ''))) {
+    errors.push('رقم الهاتف يجب أن يتكون من 7 خانات على الأقل (أو استخدم رمز الدولة والرقم)');
   }
 
   if (patient.email && patient.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patient.email)) {
@@ -121,6 +131,12 @@ const validatePatientData = (patient: Partial<Patient>, existingPatients: Patien
 
   if (patient.birthDate && new Date(patient.birthDate) > new Date()) {
     errors.push('تاريخ الميلاد لا يمكن أن يكون في المستقبل');
+  }
+
+  if (patient.medicalHistory === undefined || patient.medicalHistory === null) {
+    // default "None" can be set on add
+  } else if (typeof patient.medicalHistory !== 'string') {
+    errors.push('السجل الطبي يجب أن يكون نصاً');
   }
 
   return {
@@ -149,9 +165,9 @@ export const usePatientStore = create<PatientState>()(
     (set, get) => ({
       patients: [],
       lastId: 0,
+      lastInternalClinicId: 0,
       version: 1,
 
-      // إضافة مريض جديد مع التحقق من صحة البيانات
       addPatient: async (patientData) => {
         try {
           const validation = validatePatientData(patientData, get().patients);
@@ -160,11 +176,17 @@ export const usePatientStore = create<PatientState>()(
           }
 
           const newId = get().lastId + 1;
+          const nextInternalId = get().lastInternalClinicId + 1;
           const now = new Date().toISOString();
+          const medicalHistory = patientData.medicalHistory != null && patientData.medicalHistory !== ''
+            ? patientData.medicalHistory
+            : 'None';
 
           const newPatient: Patient = {
             ...patientData,
             id: newId,
+            internalClinicId: nextInternalId,
+            medicalHistory,
             createdAt: now,
             updatedAt: now,
             isActive: true
@@ -172,7 +194,8 @@ export const usePatientStore = create<PatientState>()(
 
           set(state => ({
             patients: [...state.patients, newPatient],
-            lastId: newId
+            lastId: newId,
+            lastInternalClinicId: nextInternalId
           }));
 
           return newId;
@@ -208,15 +231,27 @@ export const usePatientStore = create<PatientState>()(
         }
       },
 
-      // حذف مريض نهائياً
+      // حذف مريض نهائياً - فقط إذا لم يكن له مواعيد أو علاجات أو فواتير (سلامة البيانات)
       deletePatient: async (id) => {
         try {
+          const appointments = (await import('./appointmentStore')).useAppointmentStore.getState().appointments;
+          const hasAppointments = appointments.some((a: { patientId: number }) => a.patientId === id);
+          if (hasAppointments) throw new Error('لا يمكن حذف مريض له مواعيد مسجلة');
+
+          const treatments = (await import('./treatmentStore')).useTreatmentStore.getState().treatments;
+          const hasTreatments = treatments.some((t: { patientId: number }) => t.patientId === id);
+          if (hasTreatments) throw new Error('لا يمكن حذف مريض له علاجات مسجلة');
+
+          const invoices = (await import('./invoiceStore')).useInvoiceStore.getState().invoices;
+          const hasInvoices = invoices.some((i: { patientId: number }) => i.patientId === id);
+          if (hasInvoices) throw new Error('لا يمكن حذف مريض له فواتير مسجلة');
+
           set(state => ({
             patients: state.patients.filter(patient => patient.id !== id)
           }));
           return true;
         } catch (error) {
-          return false;
+          throw error;
         }
       },
 
@@ -473,7 +508,8 @@ export const usePatientStore = create<PatientState>()(
         try {
           set({
             patients: [],
-            lastId: 0
+            lastId: 0,
+            lastInternalClinicId: 0
           });
           return true;
         } catch (error) {
@@ -484,23 +520,23 @@ export const usePatientStore = create<PatientState>()(
     {
       name: 'dental-patients-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
-        // معالجة ترقية البيانات للإصدارات الجديدة
-        if (version === 0) {
-          // ترقية من الإصدار القديم
-          return {
-            ...persistedState,
-            version: 1,
-            patients: persistedState.patients?.map((patient: any) => ({
-              ...patient,
-              isActive: patient.isActive !== false,
-              createdAt: patient.createdAt || new Date().toISOString(),
-              updatedAt: patient.updatedAt || new Date().toISOString()
-            })) || []
-          };
-        }
-        return persistedState;
+        if (!persistedState) return persistedState;
+        const patients = persistedState.patients?.map((p: any, idx: number) => ({
+          ...p,
+          isActive: p.isActive !== false,
+          createdAt: p.createdAt || new Date().toISOString(),
+          updatedAt: p.updatedAt || new Date().toISOString(),
+          internalClinicId: p.internalClinicId ?? p.id ?? idx + 1
+        })) ?? [];
+        const lastInternalClinicId = persistedState.lastInternalClinicId ?? Math.max(0, ...patients.map((p: any) => p.internalClinicId ?? 0));
+        return {
+          ...persistedState,
+          patients,
+          lastInternalClinicId,
+          version: 2
+        };
       },
       onRehydrateStorage: () => () => {
         // تم تحميل بيانات المرضى من localStorage

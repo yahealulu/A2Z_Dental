@@ -15,9 +15,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, isToday } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppointmentStore } from '../store/appointmentStore';
 import { usePatientStore } from '../store/patientStore';
 import { useDoctorStore } from '../store/doctorStore';
+import { useProcedureStore } from '../store/procedureStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { getSlotsForDate, isWorkingDate } from '../utils/appointmentSlots';
 import { notify } from '../store/notificationStore';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useTreatmentStore } from '../store/treatmentStore';
@@ -80,19 +84,23 @@ const Appointments = () => {
   // Hour dropdown state
   const [showHourDropdown, setShowHourDropdown] = useState(false);
 
-  // New appointment state
+  // New appointment state (date/time for slot-based booking)
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [newAppointment, setNewAppointment] = useState({
     patientId: '',
     doctorId: '',
+    date: todayStr,
     day: new Date().getDate().toString(),
     month: (new Date().getMonth() + 1).toString(),
     year: new Date().getFullYear().toString(),
+    time: '09:00', // slot HH:mm
     hour: '9',
     minute: '00',
     period: 'صباحاً',
     treatment: 'فحص',
+    treatmentType: 'Examination',
     notes: '',
-    status: 'scheduled' as const
+    status: 'scheduled' as 'scheduled' | 'completed' | 'cancelled' | 'waiting_list'
   });
 
   // New patient state
@@ -118,6 +126,28 @@ const Appointments = () => {
   const { patients: allPatients, addPatient } = usePatientStore();
   const { doctors: allDoctors, getActiveDoctors } = useDoctorStore();
   const { treatmentTemplates, initializeDefaultTemplates } = useTreatmentStore();
+  const getGroups = useProcedureStore(s => s.getGroups);
+  const settings = useSettingsStore(
+    useShallow(s => ({
+      workingHours: s.settings.workingHours,
+      workingDays: s.settings.workingDays,
+      holidays: s.settings.holidays,
+      appointmentDuration: s.settings.appointmentDuration || 30
+    }))
+  );
+
+  const procedureGroups = getGroups();
+  const addModalDateStr = `${newAppointment.year}-${newAppointment.month.padStart(2, '0')}-${newAppointment.day.padStart(2, '0')}`;
+  const addModalSlots = useMemo(() => {
+    return getSlotsForDate(
+      addModalDateStr,
+      settings.workingHours,
+      settings.workingDays,
+      settings.holidays,
+      settings.appointmentDuration
+    );
+  }, [addModalDateStr, settings.workingHours, settings.workingDays, settings.holidays, settings.appointmentDuration]);
+  const addModalIsWorkingDay = isWorkingDate(addModalDateStr, settings.workingDays, settings.holidays);
 
   // الحصول على الأطباء النشطين فقط للقوائم
   const activeDoctors = getActiveDoctors();
@@ -144,20 +174,34 @@ const Appointments = () => {
 
   // Modal handlers
   const handleAddAppointment = () => {
-    // تحديد أول طبيب نشط تلقائياً
     const firstDoctor = activeDoctors[0];
     const today = new Date();
+    const d = today.getDate().toString();
+    const m = (today.getMonth() + 1).toString();
+    const y = today.getFullYear().toString();
+    const dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    const slots = getSlotsForDate(
+      dateStr,
+      settings.workingHours,
+      settings.workingDays,
+      settings.holidays,
+      settings.appointmentDuration
+    );
     setNewAppointment(prev => ({
       ...prev,
       patientId: '',
       doctorId: firstDoctor ? firstDoctor.id.toString() : '',
-      day: today.getDate().toString(),
-      month: (today.getMonth() + 1).toString(),
-      year: today.getFullYear().toString(),
-      treatment: 'فحص',
+      date: dateStr,
+      day: d,
+      month: m,
+      year: y,
+      time: slots[0]?.time || '09:00',
       hour: '9',
       minute: '00',
-      period: 'صباحاً'
+      period: 'صباحاً',
+      treatment: 'فحص',
+      treatmentType: 'Examination',
+      status: 'scheduled'
     }));
 
     setIsNewPatientAppointment(false);
@@ -173,20 +217,34 @@ const Appointments = () => {
   };
 
   const handleAddNewPatient = () => {
-    // تحديد أول طبيب نشط تلقائياً
     const firstDoctor = activeDoctors[0];
     const today = new Date();
+    const d = today.getDate().toString();
+    const m = (today.getMonth() + 1).toString();
+    const y = today.getFullYear().toString();
+    const dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    const slots = getSlotsForDate(
+      dateStr,
+      settings.workingHours,
+      settings.workingDays,
+      settings.holidays,
+      settings.appointmentDuration
+    );
     setNewAppointment(prev => ({
       ...prev,
       patientId: '',
       doctorId: firstDoctor ? firstDoctor.id.toString() : '',
-      day: today.getDate().toString(),
-      month: (today.getMonth() + 1).toString(),
-      year: today.getFullYear().toString(),
-      treatment: 'فحص',
+      date: dateStr,
+      day: d,
+      month: m,
+      year: y,
+      time: slots[0]?.time || '09:00',
       hour: '9',
       minute: '00',
-      period: 'صباحاً'
+      period: 'صباحاً',
+      treatment: 'فحص',
+      treatmentType: 'Examination',
+      status: 'scheduled'
     }));
 
     setIsNewPatientAppointment(true);
@@ -207,16 +265,22 @@ const Appointments = () => {
       setIsAddModalOpen(false);
       setIsModalAnimating(false);
       const today = new Date();
+      const d = today.getDate().toString();
+      const m = (today.getMonth() + 1).toString();
+      const y = today.getFullYear().toString();
       setNewAppointment({
         patientId: '',
         doctorId: '',
-        day: today.getDate().toString(),
-        month: (today.getMonth() + 1).toString(),
-        year: today.getFullYear().toString(),
+        date: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`,
+        day: d,
+        month: m,
+        year: y,
+        time: '09:00',
         hour: '9',
         minute: '00',
         period: 'صباحاً',
         treatment: 'فحص',
+        treatmentType: 'Examination',
         notes: '',
         status: 'scheduled'
       });
@@ -244,24 +308,32 @@ const Appointments = () => {
     }, 300);
   };
 
+  // Convert slot "HH:mm" to display time "h:mm period"
+  const slotToDisplayTime = (slotTime: string) => {
+    const [h, m] = slotTime.split(':').map(Number);
+    const hour = h ?? 0;
+    const minute = m ?? 0;
+    if (hour === 0) return `12:${String(minute).padStart(2, '0')} صباحاً`;
+    if (hour < 12) return `${hour}:${String(minute).padStart(2, '0')} صباحاً`;
+    if (hour === 12) return `12:${String(minute).padStart(2, '0')} مساءً`;
+    return `${hour - 12}:${String(minute).padStart(2, '0')} مساءً`;
+  };
+
   // Save handlers
   const handleSaveAppointment = async () => {
-    // التحقق من الحقول المطلوبة
     const patientNameToUse = isNewPatientAppointment ? newPatientName.trim() : patientSearchTerm.trim();
-    const patientIdToUse = isNewPatientAppointment ? 0 : parseInt(newAppointment.patientId);
+    let patientIdToUse = isNewPatientAppointment ? 0 : parseInt(newAppointment.patientId, 10);
 
-    if (!patientNameToUse || !newAppointment.day || !newAppointment.hour) {
+    if (!patientNameToUse || !newAppointment.day || (addModalSlots.length > 0 ? !newAppointment.time : !newAppointment.hour)) {
       notify.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
 
-    // التحقق من أن الاسم عربي فقط
     if (!isArabicOnly(patientNameToUse)) {
       notify.error('يرجى كتابة اسم المريض باللغة العربية فقط');
       return;
     }
 
-    // التحقق من تحديد طبيب للمريض الجديد
     if (isNewPatientAppointment && !newAppointment.doctorId) {
       notify.error('يرجى تحديد طبيب للمريض الجديد');
       return;
@@ -269,23 +341,26 @@ const Appointments = () => {
 
     setIsLoading(true);
     try {
-      const patient = allPatients.find(p => p.id === parseInt(newAppointment.patientId));
-      const doctor = allDoctors.find(d => d.id === parseInt(newAppointment.doctorId));
+      if (isNewPatientAppointment) {
+        const newId = await addPatient({ name: patientNameToUse, phone: '' });
+        patientIdToUse = newId;
+      }
 
-      // تحويل التاريخ المقسم إلى تنسيق واحد
+      const doctor = allDoctors.find(d => d.id === parseInt(newAppointment.doctorId, 10));
       const formattedDate = `${newAppointment.year}-${newAppointment.month.padStart(2, '0')}-${newAppointment.day.padStart(2, '0')}`;
-
-      // تحويل الوقت المقسم إلى تنسيق واحد
-      const formattedTime = `${newAppointment.hour}:${newAppointment.minute} ${newAppointment.period}`;
+      const formattedTime = addModalSlots.length > 0 && newAppointment.time
+        ? slotToDisplayTime(newAppointment.time)
+        : `${newAppointment.hour}:${newAppointment.minute} ${newAppointment.period}`;
 
       await addAppointment({
         patientId: patientIdToUse,
         patientName: patientNameToUse,
-        doctorId: newAppointment.doctorId ? parseInt(newAppointment.doctorId) : undefined,
+        doctorId: newAppointment.doctorId ? parseInt(newAppointment.doctorId, 10) : undefined,
         doctorName: doctor?.name || '',
         date: formattedDate,
         time: formattedTime,
         treatment: newAppointment.treatment,
+        treatmentType: newAppointment.treatmentType,
         notes: newAppointment.notes,
         status: newAppointment.status,
         isNewPatient: isNewPatientAppointment
@@ -294,7 +369,7 @@ const Appointments = () => {
       handleCloseAddModal();
       notify.success('تم إضافة الموعد بنجاح');
     } catch (error) {
-      notify.error('حدث خطأ أثناء إضافة الموعد');
+      notify.error((error as Error)?.message || 'حدث خطأ أثناء إضافة الموعد');
     } finally {
       setIsLoading(false);
     }
@@ -571,8 +646,19 @@ const Appointments = () => {
       }
     },
     {
-      header: 'العلاج',
-      accessor: (appointment: Appointment) => appointment.treatment
+      header: 'نوع العلاج',
+      accessor: (appointment: Appointment) => appointment.treatmentType || appointment.treatment
+    },
+    {
+      header: 'حالة الحجز',
+      accessor: (appointment: Appointment) => {
+        const s = appointment.status;
+        if (s === 'scheduled') return 'مجدول';
+        if (s === 'waiting_list') return 'قائمة الانتظار';
+        if (s === 'completed') return 'منفذ';
+        if (s === 'cancelled') return 'ملغى';
+        return s;
+      }
     },
     {
       header: 'الإجراءات',
@@ -903,78 +989,68 @@ const Appointments = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       الوقت <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <select
-                          value={newAppointment.hour}
-                          onChange={(e) => setNewAppointment(prev => ({ ...prev, hour: e.target.value }))}
-                          className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                          size={1}
-                        >
-                          {newAppointment.period === 'صباحاً'
-                            ? Array.from({ length: 11 }, (_, i) => i + 1).map(hour => (
-                                <option key={hour} value={hour}>{hour}</option>
-                              ))
-                            : [12, ...Array.from({ length: 11 }, (_, i) => i + 1)].map(hour => (
-                                <option key={hour} value={hour}>{hour}</option>
-                              ))
-                          }
+                    {addModalSlots.length > 0 ? (
+                      <select
+                        value={newAppointment.time}
+                        onChange={(e) => setNewAppointment(prev => ({ ...prev, time: e.target.value }))}
+                        className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
+                      >
+                        {addModalSlots.map(slot => (
+                          <option key={slot.time} value={slot.time}>{slot.time}</option>
+                        ))}
+                      </select>
+                    ) : addModalIsWorkingDay ? (
+                      <p className="text-sm text-amber-600">لا توجد فترات لهذا اليوم. تحقق من ساعات العمل في الإعدادات.</p>
+                    ) : (
+                      <p className="text-sm text-amber-600">هذا اليوم عطلة أو غير ضمن أيام العمل.</p>
+                    )}
+                    {addModalSlots.length === 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <select value={newAppointment.hour} onChange={(e) => setNewAppointment(prev => ({ ...prev, hour: e.target.value }))} className="rounded border px-2 py-1.5 text-sm">
+                          {newAppointment.period === 'صباحاً' ? [1,2,3,4,5,6,7,8,9,10,11].map(h => <option key={h} value={h}>{h}</option>) : [12,1,2,3,4,5,6,7,8,9,10,11].map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                        <select value={newAppointment.minute} onChange={(e) => setNewAppointment(prev => ({ ...prev, minute: e.target.value }))} className="rounded border px-2 py-1.5 text-sm">
+                          <option value="00">00</option><option value="30">30</option>
+                        </select>
+                        <select value={newAppointment.period} onChange={(e) => setNewAppointment(prev => ({ ...prev, period: e.target.value as 'صباحاً'|'مساءً' }))} className="rounded border px-2 py-1.5 text-sm">
+                          <option value="صباحاً">صباحاً</option><option value="مساءً">مساءً</option>
                         </select>
                       </div>
-                      <div>
-                        <select
-                          value={newAppointment.minute}
-                          onChange={(e) => setNewAppointment(prev => ({ ...prev, minute: e.target.value }))}
-                          className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                          size={1}
-                        >
-                          <option value="00">00</option>
-                          <option value="15">15</option>
-                          <option value="30">30</option>
-                          <option value="45">45</option>
-                        </select>
-                      </div>
-                      <div>
-                        <select
-                          value={newAppointment.period}
-                          onChange={(e) => {
-                            const newPeriod = e.target.value;
-                            setNewAppointment(prev => ({
-                              ...prev,
-                              period: newPeriod,
-                              // إعادة تعيين الساعة إلى قيمة صالحة للفترة الجديدة
-                              hour: newPeriod === 'صباحاً' ? '9' : '12'
-                            }));
-                          }}
-                          className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
-                          size={1}
-                        >
-                          <option value="صباحاً">صباحاً</option>
-                          <option value="مساءً">مساءً</option>
-                        </select>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  <div>
-                    <label htmlFor="treatment" className="block text-sm font-medium text-gray-700 mb-1">
-                      العلاج
-                    </label>
-                    <select
-                      id="treatment"
-                      name="treatment"
-                      value={newAppointment.treatment}
-                      onChange={(e) => setNewAppointment(prev => ({ ...prev, treatment: e.target.value }))}
-                      className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3 treatment-select"
-                    >
-                      <option value="فحص">فحص</option>
-                      {treatmentTemplates.map(treatment => (
-                        <option key={treatment.id} value={treatment.name}>
-                          {treatment.name}
-                        </option>
-                      ))}
-                    </select>
-
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="treatment" className="block text-sm font-medium text-gray-700 mb-1">نوع العلاج</label>
+                      <select
+                        id="treatment"
+                        name="treatment"
+                        value={newAppointment.treatmentType}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setNewAppointment(prev => ({ ...prev, treatmentType: v, treatment: v === 'Examination' ? 'فحص' : v }));
+                        }}
+                        className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
+                      >
+                        <option value="Examination">فحص (Examination)</option>
+                        {procedureGroups.map(g => (
+                          <option key={g.id} value={g.name}>{g.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">حالة الحجز</label>
+                      <select
+                        value={newAppointment.status}
+                        onChange={(e) => setNewAppointment(prev => ({ ...prev, status: e.target.value as Appointment['status'] }))}
+                        className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm h-10 px-3"
+                      >
+                        <option value="scheduled">مجدول</option>
+                        <option value="waiting_list">قائمة الانتظار</option>
+                        <option value="completed">منفذ</option>
+                        <option value="cancelled">ملغى</option>
+                      </select>
+                    </div>
                   </div>
 
 
@@ -994,7 +1070,7 @@ const Appointments = () => {
                     className={`px-6 py-2 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white ${
                       ((!isNewPatientAppointment && !newAppointment.patientId) ||
                        (isNewPatientAppointment && (!newPatientName.trim() || !newAppointment.doctorId)) ||
-                       !newAppointment.day || !newAppointment.hour || isLoading)
+                       !newAppointment.day || (addModalSlots.length > 0 ? !newAppointment.time : !newAppointment.hour) || isLoading)
                         ? 'opacity-50 cursor-not-allowed'
                         : ''
                     }`}
@@ -1004,7 +1080,7 @@ const Appointments = () => {
                     onClick={handleSaveAppointment}
                     disabled={(!isNewPatientAppointment && !newAppointment.patientId) ||
                              (isNewPatientAppointment && (!newPatientName.trim() || !newAppointment.doctorId)) ||
-                             !newAppointment.day || !newAppointment.hour || isLoading}
+                             !newAppointment.day || (addModalSlots.length > 0 ? !newAppointment.time : !newAppointment.hour) || isLoading}
                   >
                     {isLoading ? 'جاري الحفظ...' : 'إضافة الموعد'}
                   </button>

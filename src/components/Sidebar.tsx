@@ -11,7 +11,8 @@ import {
   XMarkIcon,
   Bars3Icon,
   UserIcon,
-  BeakerIcon
+  BeakerIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
@@ -29,9 +30,12 @@ const Sidebar = ({ isMobile, isOpen, toggleSidebar }: SidebarProps) => {
     { path: '/appointments', name: 'المواعيد', icon: CalendarIcon },
     { path: '/treatments', name: 'قوالب العلاجات', icon: ClipboardDocumentListIcon },
     { path: '/patient-payments', name: 'دفعات المرضى', icon: BanknotesIcon },
+    { path: '/invoices', name: 'الفواتير', icon: ClipboardDocumentListIcon },
+    { path: '/payments', name: 'الدفعات', icon: BanknotesIcon },
     { path: '/revenue', name: 'الإيرادات', icon: ArrowTrendingUpIcon },
     { path: '/expenses', name: 'مصاريف العيادة', icon: BanknotesIcon },
     { path: '/doctors', name: 'الأطباء', icon: UserIcon },
+    { path: '/staff', name: 'طاقم العيادة', icon: UserCircleIcon },
     { path: '/lab-requests', name: 'طلبات المخبر', icon: BeakerIcon },
     { path: '/settings', name: 'الإعدادات', icon: Cog6ToothIcon },
   ];
